@@ -1,0 +1,21 @@
+[research]
+goal = "Reduce bundle size below 200 KB without breaking tests"
+metric = "bundle size (kb)"
+direction = "lower"
+verify = "npm run build 2>&1 | grep 'First Load JS'"
+scope = ["src/**"]
+guard = "npm test"
+iterations = 10
+min_delta = 1.0
+
+[runtime]
+codex_command = "codex exec"
+auto_stage_all = true
+
+[git]
+branch_prefix = "autoresearch"
+
+[files]
+prompt_file = ".autoresearch/prompt.md"
+log_tsv = ".autoresearch/results.tsv"
+scratch_dir = ".autoresearch"

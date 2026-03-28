@@ -1,0 +1,21 @@
+[research]
+goal = "Increase pytest coverage"
+metric = "coverage percent"
+direction = "higher"
+verify = "pytest --cov=src 2>&1 | grep TOTAL"
+scope = ["src/**", "tests/**"]
+guard = "pytest"
+iterations = 10
+min_delta = 0.1
+
+[runtime]
+codex_command = "codex exec"
+auto_stage_all = true
+
+[git]
+branch_prefix = "autoresearch"
+
+[files]
+prompt_file = ".autoresearch/prompt.md"
+log_tsv = ".autoresearch/results.tsv"
+scratch_dir = ".autoresearch"
