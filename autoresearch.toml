@@ -2,7 +2,7 @@
 goal = "Increase test coverage of Codex Autoresearch by adding meaningful tests"
 metric = "collected pytest tests"
 direction = "higher"
-verify = "pytest --collect-only -q | tail -n 1 | grep -Eo '[0-9]+'"
+verify = "pytest --collect-only -q 2>/dev/null | grep 'collected' | awk '{print \\$1}'"
 scope = ["src/**", "tests/**", "README.md"]
 guard = "pytest"
 iterations = 2
