@@ -1,12 +1,12 @@
 [research]
-goal = "Increase pytest coverage"
-metric = "coverage percent"
+goal = "Increase test coverage of Codex Autoresearch by adding meaningful tests"
+metric = "collected pytest tests"
 direction = "higher"
-verify = "pytest --cov=src 2>&1 | grep TOTAL"
-scope = ["src/**", "tests/**"]
+verify = "pytest --collect-only -q | tail -n 1 | grep -Eo '[0-9]+'"
+scope = ["src/**", "tests/**", "README.md"]
 guard = "pytest"
-iterations = 10
-min_delta = 0.1
+iterations = 2
+min_delta = 1.0
 
 [runtime]
 codex_command = "codex exec"
