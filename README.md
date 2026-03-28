@@ -1,5 +1,9 @@
 # Codex Autoresearch
 
+[![CI](https://github.com/wimi321/codex-autoresearch/actions/workflows/ci.yml/badge.svg)](https://github.com/wimi321/codex-autoresearch/actions/workflows/ci.yml)
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/wimi321/codex-autoresearch?style=social)](https://github.com/wimi321/codex-autoresearch)
+
 Codex Autoresearch is a Codex-native implementation of the Karpathy loop: one metric, one focused change, one verification step, repeated until the repository gets better.
 
 It takes the core ideas from [karpathy/autoresearch](https://github.com/karpathy/autoresearch) and the product framing from [uditgoenka/autoresearch](https://github.com/uditgoenka/autoresearch), then rebuilds them for OpenAI Codex as a real executable runner.
