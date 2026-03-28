@@ -68,7 +68,7 @@ class ResearchRunner:
             guard_status = self._run_guard()
             delta = metric - best_metric if self.config.direction == "higher" else best_metric - metric
             status = "discard"
-            if guard_status != "pass":
+            if guard_status == "fail":
                 summary = f"guard failed after Codex change. {codex_output.strip()}"
                 revert_last_commit(self.cwd)
             elif is_improvement(metric, best_metric, self.config.direction, self.config.min_delta):
@@ -92,17 +92,23 @@ class ResearchRunner:
     def _run_codex(self, iteration: int) -> str:
         run_dir = self.session_dir / f"iteration-{iteration:04d}"
         run_dir.mkdir(parents=True, exist_ok=True)
-        cmd = shlex.split(self.config.codex_command) + [
-            "--ask-for-approval", "never",
-            "--sandbox", "workspace-write",
-            str(self.prompt_path),
-        ]
+        cmd = self._build_codex_command()
         result = subprocess.run(cmd, cwd=self.cwd, text=True, capture_output=True)
         (run_dir / "codex.stdout.log").write_text(result.stdout)
         (run_dir / "codex.stderr.log").write_text(result.stderr)
         if result.returncode != 0:
             raise RuntimeError(f"codex exec failed: {result.stderr.strip() or result.stdout.strip()}")
         return result.stdout.strip() or "Codex applied a change"
+
+    def _build_codex_command(self) -> list[str]:
+        base = shlex.split(self.config.codex_command)
+        if not base:
+            raise RuntimeError("codex_command cannot be empty")
+        if base[0] == "codex":
+            if len(base) > 1 and base[1] == "exec":
+                return ["codex", "-a", "never", "exec", "-s", "workspace-write", str(self.prompt_path)]
+            return ["codex", "-a", "never", *base[1:], "exec", "-s", "workspace-write", str(self.prompt_path)]
+        return [*base, str(self.prompt_path)]
 
     def _run_verify(self) -> float:
         result = subprocess.run(self.config.verify, cwd=self.cwd, shell=True, text=True, capture_output=True)
