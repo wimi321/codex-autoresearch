@@ -1,0 +1,24 @@
+[research]
+goal = "Reduce the score in score.txt from 10 toward 0"
+metric = "score"
+direction = "lower"
+verify = "cat score.txt"
+scope = ["score.txt"]
+guard = ""
+iterations = 1
+min_delta = 0.0
+
+[runtime]
+codex_command = "codex exec"
+auto_stage_all = true
+codex_timeout_seconds = 1800
+verify_timeout_seconds = 30
+guard_timeout_seconds = 30
+
+[git]
+branch_prefix = "autoresearch"
+
+[files]
+prompt_file = ".autoresearch/prompt.md"
+log_tsv = ".autoresearch/results.tsv"
+scratch_dir = ".autoresearch"

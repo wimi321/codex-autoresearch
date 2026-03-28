@@ -74,6 +74,12 @@ autore doctor
 autore run --iterations 5
 ```
 
+### Smallest demo
+
+Want the smallest possible proof that the loop works?
+
+See [examples/demo-repo](examples/demo-repo/README.md).
+
 ### Python repo example
 
 ```toml
@@ -147,6 +153,7 @@ guard_timeout_seconds = 300
 - `src/codex_autoresearch/gittools.py`: git safety and rollback helpers
 - `docs/architecture.md`: design notes and roadmap
 - `examples/autoresearch.toml`: sample config
+- `examples/demo-repo/`: copyable end-to-end demo
 
 ## What makes this Codex-native
 

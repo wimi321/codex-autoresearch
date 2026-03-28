@@ -32,6 +32,12 @@ autore status
 autore watch --follow
 ```
 
+## 最小可运行 demo
+
+如果你想先看一个几乎零依赖、可直接复现成功的例子，看这里：
+
+- [examples/demo-repo](../examples/demo-repo/README.md)
+
 ## 典型使用流程
 
 1. `autore init --preset auto`
@@ -96,3 +102,4 @@ guard_timeout_seconds = 300
 - [架构说明](architecture.md)
 - [研究笔记](research-notes.md)
 - [示例配置](../examples/autoresearch.toml)
+- [最小 demo](../examples/demo-repo/README.md)
