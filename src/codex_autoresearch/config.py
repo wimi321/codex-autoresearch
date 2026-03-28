@@ -21,6 +21,9 @@ class ResearchConfig:
     log_tsv: str = ".autoresearch/results.tsv"
     scratch_dir: str = ".autoresearch"
     auto_stage_all: bool = True
+    codex_timeout_seconds: int = 1800
+    verify_timeout_seconds: int = 300
+    guard_timeout_seconds: int = 300
 
     @classmethod
     def load(cls, path: str | Path = "autoresearch.toml") -> "ResearchConfig":
@@ -45,6 +48,9 @@ class ResearchConfig:
             log_tsv=files.get("log_tsv", ".autoresearch/results.tsv"),
             scratch_dir=files.get("scratch_dir", ".autoresearch"),
             auto_stage_all=bool(runtime.get("auto_stage_all", True)),
+            codex_timeout_seconds=int(runtime.get("codex_timeout_seconds", 1800)),
+            verify_timeout_seconds=int(runtime.get("verify_timeout_seconds", 300)),
+            guard_timeout_seconds=int(runtime.get("guard_timeout_seconds", 300)),
         )
 
     def metric_direction_label(self) -> str:
@@ -66,6 +72,9 @@ min_delta = 0.0
 [runtime]
 codex_command = "codex exec"
 auto_stage_all = true
+codex_timeout_seconds = 1800
+verify_timeout_seconds = 300
+guard_timeout_seconds = 300
 
 [git]
 branch_prefix = "autoresearch"
@@ -90,6 +99,9 @@ min_delta = 0.1
 [runtime]
 codex_command = "codex exec"
 auto_stage_all = true
+codex_timeout_seconds = 1800
+verify_timeout_seconds = 300
+guard_timeout_seconds = 300
 
 [git]
 branch_prefix = "autoresearch"
@@ -114,6 +126,9 @@ min_delta = 1.0
 [runtime]
 codex_command = "codex exec"
 auto_stage_all = true
+codex_timeout_seconds = 1800
+verify_timeout_seconds = 300
+guard_timeout_seconds = 300
 
 [git]
 branch_prefix = "autoresearch"

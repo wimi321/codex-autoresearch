@@ -28,6 +28,8 @@ Then run:
 autore run --iterations 5
 ```
 
+During long runs, live execution logs are written under `.autoresearch/runs/iteration-XXXX/`.
+
 ## Why this project
 
 Most "autoresearch" adaptations stop at prompt files. Codex can do more.
@@ -49,6 +51,7 @@ This project treats Codex as the autonomous worker inside a strict outer loop:
 - Automatic branch creation for isolated runs
 - Keep/discard logic based on mechanical metrics
 - Optional guard command support
+- Per-iteration log files for long-running Codex sessions
 - TSV logging for every iteration
 
 ## Installation
@@ -113,6 +116,24 @@ The runner will:
 - `autore run --iterations N`: run a bounded research loop
 - `autore status`: print the latest TSV log
 - `make setup`: bootstrap the whole project locally
+
+## Long Runs
+
+When an iteration takes a while, you can inspect its files directly:
+
+```bash
+tail -f .autoresearch/runs/iteration-0001/codex.stderr.log
+tail -f .autoresearch/runs/iteration-0001/codex.stdout.log
+```
+
+Timeouts are configurable in `autoresearch.toml`:
+
+```toml
+[runtime]
+codex_timeout_seconds = 1800
+verify_timeout_seconds = 300
+guard_timeout_seconds = 300
+```
 
 ## Repository layout
 

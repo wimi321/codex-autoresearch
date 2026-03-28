@@ -81,3 +81,12 @@ def test_cmd_doctor_prints_config_summary_when_ready(tmp_path: Path, monkeypatch
     assert "- goal: Increase coverage" in output
     assert "- metric: collected tests (higher is better)" in output
     assert "- verify: pytest --collect-only -q" in output
+
+
+def test_cmd_run_prints_research_summary_when_iterations_missing(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    config_path = write_config(tmp_path, iterations=None)
+
+    assert cmd_run(str(config_path), iterations_override=None, branch=None, skip_branch=True) == 1
+
+    assert "Iterations must be set in config or passed with --iterations." in capsys.readouterr().err

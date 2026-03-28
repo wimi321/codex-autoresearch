@@ -6,6 +6,7 @@ from pathlib import Path
 import csv
 import shlex
 import subprocess
+import threading
 
 from .config import ResearchConfig
 from .gittools import GitError, branch_exists, checkout_new_branch, create_experiment_commit, ensure_gitignore_has, require_repo_clean, revert_last_commit
@@ -60,10 +61,13 @@ class ResearchRunner:
     def run(self, iterations: int, baseline: float) -> float:
         best_metric = baseline
         for iteration in range(1, iterations + 1):
+            print(f"[autore] iteration {iteration}/{iterations}: preparing prompt")
             prompt = build_iteration_prompt(self.config, iteration, best_metric)
             write_prompt(self.prompt_path, prompt)
+            print(f"[autore] iteration {iteration}/{iterations}: running Codex")
             codex_output = self._run_codex(iteration)
             commit = create_experiment_commit(self.cwd, f"experiment: iteration {iteration}", self.config.auto_stage_all)
+            print(f"[autore] iteration {iteration}/{iterations}: verifying metric")
             metric = self._run_verify()
             guard_status = self._run_guard()
             delta = metric - best_metric if self.config.direction == "higher" else best_metric - metric
@@ -87,15 +91,24 @@ class ResearchRunner:
                 status=status,
                 summary=summary,
             ))
+            print(
+                f"[autore] iteration {iteration}/{iterations}: {status} "
+                f"(metric={metric:.6f}, delta={delta:.6f}, guard={guard_status})"
+            )
         return best_metric
 
     def _run_codex(self, iteration: int) -> str:
         run_dir = self.session_dir / f"iteration-{iteration:04d}"
         run_dir.mkdir(parents=True, exist_ok=True)
         cmd = self._build_codex_command()
-        result = subprocess.run(cmd, cwd=self.cwd, text=True, capture_output=True)
-        (run_dir / "codex.stdout.log").write_text(result.stdout)
-        (run_dir / "codex.stderr.log").write_text(result.stderr)
+        print(f"[autore] logs: {run_dir}")
+        result = self._run_process_with_logs(
+            cmd,
+            cwd=self.cwd,
+            stdout_path=run_dir / "codex.stdout.log",
+            stderr_path=run_dir / "codex.stderr.log",
+            timeout_seconds=self.config.codex_timeout_seconds,
+        )
         if result.returncode != 0:
             raise RuntimeError(f"codex exec failed: {result.stderr.strip() or result.stdout.strip()}")
         return result.stdout.strip() or "Codex applied a change"
@@ -111,7 +124,14 @@ class ResearchRunner:
         return [*base, str(self.prompt_path)]
 
     def _run_verify(self) -> float:
-        result = subprocess.run(self.config.verify, cwd=self.cwd, shell=True, text=True, capture_output=True)
+        result = subprocess.run(
+            self.config.verify,
+            cwd=self.cwd,
+            shell=True,
+            text=True,
+            capture_output=True,
+            timeout=self.config.verify_timeout_seconds,
+        )
         if result.returncode != 0:
             raise RuntimeError(f"verify command failed:\n{result.stdout}\n{result.stderr}")
         return extract_last_number(result.stdout)
@@ -119,7 +139,14 @@ class ResearchRunner:
     def _run_guard(self) -> str:
         if not self.config.guard:
             return "-"
-        result = subprocess.run(self.config.guard, cwd=self.cwd, shell=True, text=True, capture_output=True)
+        result = subprocess.run(
+            self.config.guard,
+            cwd=self.cwd,
+            shell=True,
+            text=True,
+            capture_output=True,
+            timeout=self.config.guard_timeout_seconds,
+        )
         return "pass" if result.returncode == 0 else "fail"
 
     def _ensure_log_header(self) -> None:
@@ -141,6 +168,68 @@ class ResearchRunner:
                 row.status,
                 row.summary.replace("\n", " ")[:500],
             ])
+
+    def _run_process_with_logs(
+        self,
+        cmd: list[str],
+        *,
+        cwd: Path,
+        stdout_path: Path,
+        stderr_path: Path,
+        timeout_seconds: int,
+    ) -> subprocess.CompletedProcess[str]:
+        stdout_chunks: list[str] = []
+        stderr_chunks: list[str] = []
+
+        process = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        def pump(stream, destination: Path, chunks: list[str]) -> None:
+            with destination.open("w") as handle:
+                if stream is None:
+                    return
+                for line in iter(stream.readline, ""):
+                    handle.write(line)
+                    handle.flush()
+                    chunks.append(line)
+                stream.close()
+
+        stdout_thread = threading.Thread(
+            target=pump,
+            args=(process.stdout, stdout_path, stdout_chunks),
+            daemon=True,
+        )
+        stderr_thread = threading.Thread(
+            target=pump,
+            args=(process.stderr, stderr_path, stderr_chunks),
+            daemon=True,
+        )
+        stdout_thread.start()
+        stderr_thread.start()
+
+        try:
+            returncode = process.wait(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired as exc:
+            process.kill()
+            stdout_thread.join()
+            stderr_thread.join()
+            raise RuntimeError(
+                f"codex exec timed out after {timeout_seconds}s; inspect logs under {stdout_path.parent}"
+            ) from exc
+
+        stdout_thread.join()
+        stderr_thread.join()
+        return subprocess.CompletedProcess(
+            args=cmd,
+            returncode=returncode,
+            stdout="".join(stdout_chunks),
+            stderr="".join(stderr_chunks),
+        )
 
 
 def default_branch_name(prefix: str) -> str:

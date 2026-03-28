@@ -51,6 +51,10 @@ def cmd_run(config_path: str, iterations_override: int | None, branch: str | Non
         print("Iterations must be set in config or passed with --iterations.", file=sys.stderr)
         return 1
     branch_name = None if skip_branch else (branch or default_branch_name(config.branch_prefix))
+    print(f"[autore] goal: {config.goal}")
+    print(f"[autore] metric: {config.metric} ({config.metric_direction_label()})")
+    print(f"[autore] verify: {config.verify}")
+    print(f"[autore] guard: {config.guard or 'none'}")
     runner.ensure_setup(branch_name=branch_name)
     baseline = runner.establish_baseline()
     best = runner.run(target_iterations, baseline)
