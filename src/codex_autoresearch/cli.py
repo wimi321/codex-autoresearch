@@ -22,12 +22,20 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--iterations", type=int)
     run_parser.add_argument("--branch")
     run_parser.add_argument("--skip-branch", action="store_true")
+    run_parser.add_argument("--resume", action="store_true")
 
     status_parser = sub.add_parser("status", help="show the latest results log")
     status_parser.add_argument("--config", default="autoresearch.toml")
 
     doctor_parser = sub.add_parser("doctor", help="check whether this repo is ready to run")
     doctor_parser.add_argument("--config", default="autoresearch.toml")
+
+    watch_parser = sub.add_parser("watch", help="watch the latest run logs or results")
+    watch_parser.add_argument("--config", default="autoresearch.toml")
+    watch_parser.add_argument("--stream", choices=["stderr", "stdout", "results"], default="stderr")
+    watch_parser.add_argument("--follow", action="store_true")
+    watch_parser.add_argument("--interval", type=float, default=1.0)
+    watch_parser.add_argument("--lines", type=int, default=40)
 
     return parser
 
@@ -43,17 +51,36 @@ def cmd_init(force: bool, preset: str) -> int:
     return 0
 
 
-def cmd_run(config_path: str, iterations_override: int | None, branch: str | None, skip_branch: bool) -> int:
+def cmd_run(
+    config_path: str,
+    iterations_override: int | None,
+    branch: str | None,
+    skip_branch: bool,
+    resume: bool,
+) -> int:
     config = ResearchConfig.load(config_path)
     runner = ResearchRunner(Path.cwd(), config)
     target_iterations = iterations_override or config.iterations
     if not target_iterations:
         print("Iterations must be set in config or passed with --iterations.", file=sys.stderr)
         return 1
-    branch_name = None if skip_branch else (branch or default_branch_name(config.branch_prefix))
-    runner.ensure_setup(branch_name=branch_name)
-    baseline = runner.establish_baseline()
-    best = runner.run(target_iterations, baseline)
+    branch_name = None if skip_branch or resume else (branch or default_branch_name(config.branch_prefix))
+    print(f"[autore] goal: {config.goal}")
+    print(f"[autore] metric: {config.metric} ({config.metric_direction_label()})")
+    print(f"[autore] verify: {config.verify}")
+    print(f"[autore] guard: {config.guard or 'none'}")
+    runner.ensure_setup(branch_name=branch_name, allow_resume=resume)
+
+    state = runner.resume_state() if resume else None
+    if state is None:
+        baseline = runner.establish_baseline()
+        start_iteration = 1
+    else:
+        last_iteration, baseline = state
+        start_iteration = last_iteration + 1
+        print(f"[autore] resuming from iteration {start_iteration} with best metric {baseline:.6f}")
+
+    best = runner.run(target_iterations, baseline, start_iteration=start_iteration)
     print(f"Baseline: {baseline:.6f}")
     print(f"Best: {best:.6f}")
     print(f"Results log: {config.log_tsv}")
@@ -97,17 +124,36 @@ def cmd_doctor(config_path: str) -> int:
     return 0
 
 
+def cmd_watch(config_path: str, stream: str, follow: bool, interval: float, lines: int) -> int:
+    config = ResearchConfig.load(config_path)
+    runner = ResearchRunner(Path.cwd(), config)
+
+    if stream == "results":
+        path = runner.log_path
+    else:
+        latest = runner.latest_run_dir()
+        if latest is None:
+            print("No run directory found yet. Start `autore run` first.", file=sys.stderr)
+            return 1
+        name = "codex.stderr.log" if stream == "stderr" else "codex.stdout.log"
+        path = latest / name
+
+    return runner.watch_file(path, follow=follow, interval_seconds=interval, lines=lines)
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     if args.command == "init":
         return cmd_init(args.force, args.preset)
     if args.command == "run":
-        return cmd_run(args.config, args.iterations, args.branch, args.skip_branch)
+        return cmd_run(args.config, args.iterations, args.branch, args.skip_branch, args.resume)
     if args.command == "status":
         return cmd_status(args.config)
     if args.command == "doctor":
         return cmd_doctor(args.config)
+    if args.command == "watch":
+        return cmd_watch(args.config, args.stream, args.follow, args.interval, args.lines)
     parser.error("unknown command")
     return 2
 
