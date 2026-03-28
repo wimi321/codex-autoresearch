@@ -29,6 +29,13 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_parser = sub.add_parser("doctor", help="check whether this repo is ready to run")
     doctor_parser.add_argument("--config", default="autoresearch.toml")
 
+    watch_parser = sub.add_parser("watch", help="watch the latest run logs or results")
+    watch_parser.add_argument("--config", default="autoresearch.toml")
+    watch_parser.add_argument("--stream", choices=["stderr", "stdout", "results"], default="stderr")
+    watch_parser.add_argument("--follow", action="store_true")
+    watch_parser.add_argument("--interval", type=float, default=1.0)
+    watch_parser.add_argument("--lines", type=int, default=40)
+
     return parser
 
 
@@ -101,6 +108,23 @@ def cmd_doctor(config_path: str) -> int:
     return 0
 
 
+def cmd_watch(config_path: str, stream: str, follow: bool, interval: float, lines: int) -> int:
+    config = ResearchConfig.load(config_path)
+    runner = ResearchRunner(Path.cwd(), config)
+
+    if stream == "results":
+        path = runner.log_path
+    else:
+        latest = runner.latest_run_dir()
+        if latest is None:
+            print("No run directory found yet. Start `autore run` first.", file=sys.stderr)
+            return 1
+        name = "codex.stderr.log" if stream == "stderr" else "codex.stdout.log"
+        path = latest / name
+
+    return runner.watch_file(path, follow=follow, interval_seconds=interval, lines=lines)
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
@@ -112,6 +136,8 @@ def main() -> int:
         return cmd_status(args.config)
     if args.command == "doctor":
         return cmd_doctor(args.config)
+    if args.command == "watch":
+        return cmd_watch(args.config, args.stream, args.follow, args.interval, args.lines)
     parser.error("unknown command")
     return 2
 

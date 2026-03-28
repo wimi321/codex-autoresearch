@@ -4,6 +4,8 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/wimi321/codex-autoresearch?style=social)](https://github.com/wimi321/codex-autoresearch)
 
+English | [简体中文](docs/README.zh-CN.md)
+
 Codex Autoresearch is a Codex-native implementation of the Karpathy loop: one metric, one focused change, one verification step, repeated until the repository gets better.
 
 It takes the core ideas from [karpathy/autoresearch](https://github.com/karpathy/autoresearch) and the product framing from [uditgoenka/autoresearch](https://github.com/uditgoenka/autoresearch), then rebuilds them for OpenAI Codex as a real executable runner.
@@ -115,6 +117,7 @@ The runner will:
 - `autore doctor`: verify `git`, `codex`, and config prerequisites
 - `autore run --iterations N`: run a bounded research loop
 - `autore status`: print the latest TSV log
+- `autore watch --follow`: watch the newest iteration log in real time
 - `make setup`: bootstrap the whole project locally
 
 ## Long Runs
@@ -122,8 +125,9 @@ The runner will:
 When an iteration takes a while, you can inspect its files directly:
 
 ```bash
-tail -f .autoresearch/runs/iteration-0001/codex.stderr.log
-tail -f .autoresearch/runs/iteration-0001/codex.stdout.log
+autore watch --follow
+autore watch --stream stdout --follow
+autore watch --stream results
 ```
 
 Timeouts are configurable in `autoresearch.toml`:

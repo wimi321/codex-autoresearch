@@ -7,6 +7,7 @@ import csv
 import shlex
 import subprocess
 import threading
+import time
 
 from .config import ResearchConfig
 from .gittools import GitError, branch_exists, checkout_new_branch, create_experiment_commit, ensure_gitignore_has, require_repo_clean, revert_last_commit
@@ -169,6 +170,30 @@ class ResearchRunner:
                 row.summary.replace("\n", " ")[:500],
             ])
 
+    def latest_run_dir(self) -> Path | None:
+        if not self.session_dir.exists():
+            return None
+        candidates = [path for path in self.session_dir.iterdir() if path.is_dir()]
+        if not candidates:
+            return None
+        return sorted(candidates)[-1]
+
+    def watch_file(
+        self,
+        path: Path,
+        *,
+        follow: bool,
+        interval_seconds: float,
+        lines: int,
+    ) -> int:
+        if follow:
+            return self._follow_file(path, interval_seconds=interval_seconds, lines=lines)
+        if not path.exists():
+            print(f"No log file found at {path}")
+            return 1
+        print(self._tail_text(path.read_text(), lines), end="")
+        return 0
+
     def _run_process_with_logs(
         self,
         cmd: list[str],
@@ -230,6 +255,34 @@ class ResearchRunner:
             stdout="".join(stdout_chunks),
             stderr="".join(stderr_chunks),
         )
+
+    def _follow_file(self, path: Path, *, interval_seconds: float, lines: int) -> int:
+        print(f"[autore] watching {path}")
+        previous = ""
+        missing_announced = False
+        try:
+            while True:
+                if path.exists():
+                    text = path.read_text()
+                    if text != previous:
+                        if not previous:
+                            print(self._tail_text(text, lines), end="")
+                        else:
+                            print(text[len(previous):], end="")
+                        previous = text
+                    missing_announced = False
+                elif not missing_announced:
+                    print(f"[autore] waiting for {path} ...")
+                    missing_announced = True
+                time.sleep(interval_seconds)
+        except KeyboardInterrupt:
+            print("\n[autore] watch stopped")
+            return 0
+
+    @staticmethod
+    def _tail_text(text: str, lines: int) -> str:
+        chunks = text.splitlines(keepends=True)
+        return "".join(chunks[-lines:]) if lines > 0 else text
 
 
 def default_branch_name(prefix: str) -> str:

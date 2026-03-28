@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_run, cmd_status
+from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_run, cmd_status, cmd_watch
 
 
 def write_config(tmp_path: Path, *, iterations: int | None = 3) -> Path:
@@ -90,3 +90,15 @@ def test_cmd_run_prints_research_summary_when_iterations_missing(tmp_path: Path,
     assert cmd_run(str(config_path), iterations_override=None, branch=None, skip_branch=True) == 1
 
     assert "Iterations must be set in config or passed with --iterations." in capsys.readouterr().err
+
+
+def test_cmd_watch_reads_results_file(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    write_config(tmp_path)
+    log_path = tmp_path / ".autoresearch" / "results.tsv"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.write_text("iteration\tcommit\tmetric\n0\tbaseline\t14.0\n")
+
+    assert cmd_watch("autoresearch.toml", stream="results", follow=False, interval=0.01, lines=20) == 0
+
+    assert "baseline" in capsys.readouterr().out
