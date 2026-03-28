@@ -36,7 +36,7 @@ class ResearchRunner:
         self.session_dir = self.scratch_dir / "runs"
         self.session_dir.mkdir(parents=True, exist_ok=True)
 
-    def ensure_setup(self, branch_name: str | None = None) -> None:
+    def ensure_setup(self, branch_name: str | None = None, *, allow_resume: bool = False) -> None:
         self.scratch_dir.mkdir(parents=True, exist_ok=True)
         ensure_gitignore_has(self.cwd, [self.config.scratch_dir.rstrip("/") + "/"])
         require_repo_clean(self.cwd, allowed_paths={self.config.log_tsv, self.config.prompt_file, ".gitignore"})
@@ -45,6 +45,8 @@ class ResearchRunner:
             if branch_exists(self.cwd, branch_name):
                 raise GitError(f"branch already exists: {branch_name}")
             checkout_new_branch(self.cwd, branch_name)
+        elif not allow_resume and self.log_path.exists() and self.log_path.read_text().count("\n") > 1:
+            raise GitError("results log already exists; use --resume to continue the current branch")
 
     def establish_baseline(self) -> float:
         metric = self._run_verify()
@@ -59,16 +61,31 @@ class ResearchRunner:
         ))
         return metric
 
-    def run(self, iterations: int, baseline: float) -> float:
+    def resume_state(self) -> tuple[int, float] | None:
+        if not self.log_path.exists():
+            return None
+        lines = [line.strip() for line in self.log_path.read_text().splitlines() if line.strip()]
+        if len(lines) <= 1:
+            return None
+        rows = [line.split("\t") for line in lines[1:]]
+        last_iteration = max(int(row[0]) for row in rows)
+        kept_rows = [row for row in rows if row[5] in {"baseline", "keep"}]
+        if not kept_rows:
+            return None
+        best_metric = float(kept_rows[-1][2])
+        return last_iteration, best_metric
+
+    def run(self, iterations: int, baseline: float, *, start_iteration: int = 1) -> float:
         best_metric = baseline
-        for iteration in range(1, iterations + 1):
-            print(f"[autore] iteration {iteration}/{iterations}: preparing prompt")
+        stop_iteration = start_iteration + iterations - 1
+        for iteration in range(start_iteration, stop_iteration + 1):
+            print(f"[autore] iteration {iteration}/{stop_iteration}: preparing prompt")
             prompt = build_iteration_prompt(self.config, iteration, best_metric)
             write_prompt(self.prompt_path, prompt)
-            print(f"[autore] iteration {iteration}/{iterations}: running Codex")
+            print(f"[autore] iteration {iteration}/{stop_iteration}: running Codex")
             codex_output = self._run_codex(iteration)
             commit = create_experiment_commit(self.cwd, f"experiment: iteration {iteration}", self.config.auto_stage_all)
-            print(f"[autore] iteration {iteration}/{iterations}: verifying metric")
+            print(f"[autore] iteration {iteration}/{stop_iteration}: verifying metric")
             metric = self._run_verify()
             guard_status = self._run_guard()
             delta = metric - best_metric if self.config.direction == "higher" else best_metric - metric
@@ -93,7 +110,7 @@ class ResearchRunner:
                 summary=summary,
             ))
             print(
-                f"[autore] iteration {iteration}/{iterations}: {status} "
+                f"[autore] iteration {iteration}/{stop_iteration}: {status} "
                 f"(metric={metric:.6f}, delta={delta:.6f}, guard={guard_status})"
             )
         return best_metric

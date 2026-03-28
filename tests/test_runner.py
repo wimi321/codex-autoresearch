@@ -41,3 +41,16 @@ def test_build_codex_command_for_plain_codex_form(tmp_path: Path) -> None:
         "workspace-write",
         str(runner.prompt_path),
     ]
+
+
+def test_resume_state_uses_latest_keep_metric(tmp_path: Path) -> None:
+    runner = ResearchRunner(tmp_path, make_config("codex exec"))
+    runner.log_path.parent.mkdir(parents=True, exist_ok=True)
+    runner.log_path.write_text(
+        "iteration\tcommit\tmetric\tdelta\tguard\tstatus\tsummary\n"
+        "0\tbaseline\t10.000000\t0.000000\t-\tbaseline\tinitial baseline\n"
+        "1\tabc1234\t8.000000\t2.000000\tpass\tkeep\tfirst win\n"
+        "2\tdef5678\t9.000000\t-1.000000\tpass\tdiscard\tregression\n"
+    )
+
+    assert runner.resume_state() == (2, 8.0)

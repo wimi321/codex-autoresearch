@@ -22,6 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--iterations", type=int)
     run_parser.add_argument("--branch")
     run_parser.add_argument("--skip-branch", action="store_true")
+    run_parser.add_argument("--resume", action="store_true")
 
     status_parser = sub.add_parser("status", help="show the latest results log")
     status_parser.add_argument("--config", default="autoresearch.toml")
@@ -50,21 +51,36 @@ def cmd_init(force: bool, preset: str) -> int:
     return 0
 
 
-def cmd_run(config_path: str, iterations_override: int | None, branch: str | None, skip_branch: bool) -> int:
+def cmd_run(
+    config_path: str,
+    iterations_override: int | None,
+    branch: str | None,
+    skip_branch: bool,
+    resume: bool,
+) -> int:
     config = ResearchConfig.load(config_path)
     runner = ResearchRunner(Path.cwd(), config)
     target_iterations = iterations_override or config.iterations
     if not target_iterations:
         print("Iterations must be set in config or passed with --iterations.", file=sys.stderr)
         return 1
-    branch_name = None if skip_branch else (branch or default_branch_name(config.branch_prefix))
+    branch_name = None if skip_branch or resume else (branch or default_branch_name(config.branch_prefix))
     print(f"[autore] goal: {config.goal}")
     print(f"[autore] metric: {config.metric} ({config.metric_direction_label()})")
     print(f"[autore] verify: {config.verify}")
     print(f"[autore] guard: {config.guard or 'none'}")
-    runner.ensure_setup(branch_name=branch_name)
-    baseline = runner.establish_baseline()
-    best = runner.run(target_iterations, baseline)
+    runner.ensure_setup(branch_name=branch_name, allow_resume=resume)
+
+    state = runner.resume_state() if resume else None
+    if state is None:
+        baseline = runner.establish_baseline()
+        start_iteration = 1
+    else:
+        last_iteration, baseline = state
+        start_iteration = last_iteration + 1
+        print(f"[autore] resuming from iteration {start_iteration} with best metric {baseline:.6f}")
+
+    best = runner.run(target_iterations, baseline, start_iteration=start_iteration)
     print(f"Baseline: {baseline:.6f}")
     print(f"Best: {best:.6f}")
     print(f"Results log: {config.log_tsv}")
@@ -131,7 +147,7 @@ def main() -> int:
     if args.command == "init":
         return cmd_init(args.force, args.preset)
     if args.command == "run":
-        return cmd_run(args.config, args.iterations, args.branch, args.skip_branch)
+        return cmd_run(args.config, args.iterations, args.branch, args.skip_branch, args.resume)
     if args.command == "status":
         return cmd_status(args.config)
     if args.command == "doctor":

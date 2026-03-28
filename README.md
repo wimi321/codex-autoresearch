@@ -10,6 +10,29 @@ Codex Autoresearch is a Codex-native implementation of the Karpathy loop: one me
 
 It takes the core ideas from [karpathy/autoresearch](https://github.com/karpathy/autoresearch) and the product framing from [uditgoenka/autoresearch](https://github.com/uditgoenka/autoresearch), then rebuilds them for OpenAI Codex as a real executable runner.
 
+## At a Glance
+
+- One command setup: `make setup`
+- Real runner, not just prompts
+- Works with `codex exec`
+- Supports `watch`, `resume`, and bounded loops
+- English + Simplified Chinese docs
+- Copyable [demo repo](examples/demo-repo/README.md)
+
+## Flow
+
+```mermaid
+flowchart LR
+    A[Goal + Metric] --> B[Baseline]
+    B --> C[Codex Iteration]
+    C --> D[Verify + Guard]
+    D --> E{Keep?}
+    E -- Yes --> F[Commit stays]
+    E -- No --> G[Revert]
+    F --> H[results.tsv]
+    G --> H
+```
+
 ## One command setup
 
 ```bash
@@ -32,38 +55,6 @@ autore run --iterations 5
 
 During long runs, live execution logs are written under `.autoresearch/runs/iteration-XXXX/`.
 
-## Why this project
-
-Most "autoresearch" adaptations stop at prompt files. Codex can do more.
-
-This project treats Codex as the autonomous worker inside a strict outer loop:
-
-- Git is memory.
-- The verify command is truth.
-- Guard commands prevent regressions.
-- One iteration means one reversible change.
-- Results are logged to `.autoresearch/results.tsv`.
-
-## Why it feels simple
-
-- `autore init --preset auto` picks a sane starter config
-- `autore doctor` tells you if the repo is actually runnable
-- `autore run` establishes a baseline and runs bounded Codex iterations
-- `autore status` prints the research log
-- Automatic branch creation for isolated runs
-- Keep/discard logic based on mechanical metrics
-- Optional guard command support
-- Per-iteration log files for long-running Codex sessions
-- TSV logging for every iteration
-
-## Installation
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
-```
-
 ## Quick start
 
 ### Fast path
@@ -72,6 +63,12 @@ pip install -e .
 autore init --preset auto
 autore doctor
 autore run --iterations 5
+```
+
+### Resume an existing branch
+
+```bash
+autore run --resume --iterations 5
 ```
 
 ### Smallest demo
@@ -106,22 +103,12 @@ guard = "npm test"
 iterations = 10
 ```
 
-The runner will:
-
-1. create a fresh `autoresearch/<timestamp>` branch
-2. record the baseline metric
-3. write an iteration prompt for Codex
-4. run `codex exec` for one change
-5. commit the experiment
-6. verify the metric and optional guard
-7. keep or revert the commit
-8. log the outcome
-
 ## Commands
 
 - `autore init --preset auto`: generate a starter config based on the repo
 - `autore doctor`: verify `git`, `codex`, and config prerequisites
 - `autore run --iterations N`: run a bounded research loop
+- `autore run --resume --iterations N`: continue an existing research branch
 - `autore status`: print the latest TSV log
 - `autore watch --follow`: watch the newest iteration log in real time
 - `make setup`: bootstrap the whole project locally
@@ -145,6 +132,17 @@ verify_timeout_seconds = 300
 guard_timeout_seconds = 300
 ```
 
+## Nightly Runs
+
+If you want unattended scheduled research, see:
+
+- [docs/nightly.md](docs/nightly.md)
+- [examples/nightly.yml](examples/nightly.yml)
+
+## FAQ
+
+See [docs/faq.md](docs/faq.md).
+
 ## Repository layout
 
 - `src/codex_autoresearch/cli.py`: CLI entrypoint
@@ -152,27 +150,42 @@ guard_timeout_seconds = 300
 - `src/codex_autoresearch/prompting.py`: Codex iteration prompt builder
 - `src/codex_autoresearch/gittools.py`: git safety and rollback helpers
 - `docs/architecture.md`: design notes and roadmap
+- `docs/faq.md`: common questions
+- `docs/nightly.md`: scheduled run guidance
 - `examples/autoresearch.toml`: sample config
 - `examples/demo-repo/`: copyable end-to-end demo
+- `examples/nightly.yml`: scheduled workflow template
 
-## What makes this Codex-native
+## Why this project
 
-Instead of pretending Codex is just another chat model, the runner is built around real Codex workflows:
+Most "autoresearch" adaptations stop at prompt files. Codex can do more.
 
-- `codex exec` as the non-interactive worker
-- prompt files generated per iteration
-- clean repo invariants before every run
-- branch-per-run isolation
-- local-first execution with minimal dependencies
+This project treats Codex as the autonomous worker inside a strict outer loop:
 
-## Near-term roadmap
+- Git is memory.
+- The verify command is truth.
+- Guard commands prevent regressions.
+- One iteration means one reversible change.
+- Results are logged to `.autoresearch/results.tsv`.
 
-- Unbounded overnight mode with resumable sessions
-- richer metric parsing and named extractors
-- built-in profiles for `fix`, `debug`, `security`, and `learn`
-- GitHub Actions support for scheduled research jobs
-- prettier reports and experiment summaries
-- benchmark examples against real repositories
+## Why it feels simple
+
+- `autore init --preset auto` picks a sane starter config
+- `autore doctor` tells you if the repo is actually runnable
+- `autore run` establishes a baseline and runs bounded Codex iterations
+- `autore run --resume` continues where you left off
+- `autore status` prints the research log
+- Automatic branch creation for isolated runs
+- Keep/discard logic based on mechanical metrics
+- Optional guard command support
+- Per-iteration log files for long-running Codex sessions
+- TSV logging for every iteration
+
+## Release Notes
+
+Current target release: `0.2.0`
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## Inspiration
 

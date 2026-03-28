@@ -39,7 +39,13 @@ def test_cmd_run_requires_iterations_when_missing(tmp_path: Path, monkeypatch, c
     monkeypatch.chdir(tmp_path)
     config_path = write_config(tmp_path, iterations=None)
 
-    assert cmd_run(str(config_path), iterations_override=None, branch=None, skip_branch=False) == 1
+    assert cmd_run(
+        str(config_path),
+        iterations_override=None,
+        branch=None,
+        skip_branch=False,
+        resume=False,
+    ) == 1
 
     assert "Iterations must be set in config or passed with --iterations." in capsys.readouterr().err
 
@@ -87,7 +93,13 @@ def test_cmd_run_prints_research_summary_when_iterations_missing(tmp_path: Path,
     monkeypatch.chdir(tmp_path)
     config_path = write_config(tmp_path, iterations=None)
 
-    assert cmd_run(str(config_path), iterations_override=None, branch=None, skip_branch=True) == 1
+    assert cmd_run(
+        str(config_path),
+        iterations_override=None,
+        branch=None,
+        skip_branch=True,
+        resume=False,
+    ) == 1
 
     assert "Iterations must be set in config or passed with --iterations." in capsys.readouterr().err
 

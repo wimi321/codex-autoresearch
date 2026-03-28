@@ -2,12 +2,15 @@
 
 [English](../README.md) | 简体中文
 
-Codex Autoresearch 是一个面向 OpenAI Codex 的自动研究循环工具。它把 Karpathy loop 做成了真正可执行的 runner：
+Codex Autoresearch 是一个面向 OpenAI Codex 的自动研究循环工具。它把 Karpathy loop 做成了真正可执行的 runner。
 
-- 一个机械指标
-- 一次只做一个改动
-- 用 verify 命令判断成败
-- 变好就保留，变差就回滚
+## 一眼看懂
+
+- 一键启动：`make setup`
+- 不是 prompt 集合，而是真正的 CLI runner
+- 支持 `watch`、`resume`、bounded loop
+- 支持中英文文档
+- 自带一个可复制的最小 demo
 
 ## 一键启动
 
@@ -28,6 +31,7 @@ autore run --iterations 5
 autore init --preset auto
 autore doctor
 autore run --iterations 5
+autore run --resume --iterations 5
 autore status
 autore watch --follow
 ```
@@ -38,23 +42,6 @@ autore watch --follow
 
 - [examples/demo-repo](../examples/demo-repo/README.md)
 
-## 典型使用流程
-
-1. `autore init --preset auto`
-2. 修改 `autoresearch.toml`
-3. `autore doctor`
-4. `autore run --iterations 5`
-5. 用 `autore watch --follow` 观察长任务日志
-
-## 当前项目特点
-
-- 基于 `codex exec`
-- 支持自动建分支
-- 支持 verify / guard
-- 支持长任务日志落盘
-- 支持超时配置
-- 支持结果写入 `.autoresearch/results.tsv`
-
 ## 长任务观察
 
 ```bash
@@ -63,39 +50,14 @@ autore watch --stream stdout --follow
 autore watch --stream results
 ```
 
-也可以直接看文件：
+## 夜间运行
 
-```bash
-tail -f .autoresearch/runs/iteration-0001/codex.stderr.log
-tail -f .autoresearch/runs/iteration-0001/codex.stdout.log
-```
+- [Nightly 说明](nightly.md)
+- [GitHub Actions 模板](../examples/nightly.yml)
 
-## 配置示例
+## 常见问题
 
-```toml
-[research]
-goal = "提升 pytest 覆盖率"
-metric = "coverage percent"
-direction = "higher"
-verify = "pytest --cov=src 2>&1 | grep TOTAL"
-scope = ["src/**", "tests/**"]
-guard = "pytest"
-iterations = 10
-
-[runtime]
-codex_command = "codex exec"
-auto_stage_all = true
-codex_timeout_seconds = 1800
-verify_timeout_seconds = 300
-guard_timeout_seconds = 300
-```
-
-## 适合什么项目
-
-- Python 项目
-- Node / 前端项目
-- 想做自动补测试、减体积、提指标的代码仓库
-- 想把 Codex 变成 nightly research worker 的团队
+- [FAQ](faq.md)
 
 ## 相关文档
 
@@ -103,3 +65,4 @@ guard_timeout_seconds = 300
 - [研究笔记](research-notes.md)
 - [示例配置](../examples/autoresearch.toml)
 - [最小 demo](../examples/demo-repo/README.md)
+- [更新日志](../CHANGELOG.md)
