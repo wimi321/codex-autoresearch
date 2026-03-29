@@ -2484,9 +2484,6 @@ def render_ui_html() -> str:
         <div class="small" style="margin-top:10px;"><strong>${copy[lang].configSummaryVerify}</strong><div>${escapeHtml(config.verify)}</div></div>
         <div class="small" style="margin-top:10px;"><strong>${copy[lang].configSummaryGuard}</strong><div>${escapeHtml(config.guard || copy[lang].valueNone)}</div></div>
       ` : copy[lang].noConfig;
-      if (config && !document.getElementById("simpleGoalInput").value.trim()) {
-        document.getElementById("simpleGoalInput").value = config.goal || "";
-      }
       document.getElementById("goalInput").value = config ? config.goal : "";
       document.getElementById("metricInput").value = config ? config.metric : "";
       document.getElementById("directionInput").value = config ? config.direction : "higher";
