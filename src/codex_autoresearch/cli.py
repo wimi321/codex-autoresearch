@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 from .config import ResearchConfig, detect_preset, template_for_preset
-from .gittools import ensure_gitignore_has
+from .gittools import ensure_gitignore_has, git
 from .runner import ResearchRunner, default_branch_name
 
 
@@ -85,8 +85,7 @@ def cmd_init(force: bool, preset: str) -> int:
     if path.exists() and not force:
         print("autoresearch.toml already exists. Use --force to overwrite.", file=sys.stderr)
         return 1
-    resolved = detect_preset(Path.cwd()) if preset == "auto" else preset
-    path.write_text(template_for_preset(resolved))
+    resolved = _write_config_template(path, preset)
     print(f"Wrote autoresearch.toml using '{resolved}' preset")
     return 0
 
@@ -108,20 +107,15 @@ def cmd_start(
     config = Path(config_path)
     if not config.exists():
         print("[autore] no config found, generating one for this repo")
-        original = Path("autoresearch.toml")
-        target = config.name
-        if target != original.name:
-            Path(target).write_text(template_for_preset(detect_preset(Path.cwd()) if preset == "auto" else preset))
-            print(f"Wrote {target}")
-        else:
-            result = cmd_init(force=False, preset=preset)
-            if result != 0:
-                return result
+        _write_config_template(config, preset)
+        print(f"Wrote {config}")
 
     print("[autore] checking repo setup and auto-fixing obvious gaps")
     doctor_result = cmd_doctor(config_path, fix=True)
     if doctor_result != 0:
         return doctor_result
+
+    _bootstrap_start_commit(Path.cwd(), config_path)
 
     return cmd_run(
         config_path,
@@ -206,6 +200,42 @@ def cmd_run(
     return 0
 
 
+def _bootstrap_start_commit(cwd: Path, config_path: str) -> None:
+    if not (cwd / ".git").exists():
+        return
+    if git(["rev-parse", "--git-dir"], cwd, check=False).returncode != 0:
+        return
+
+    status_lines = [line for line in git(["status", "--porcelain"], cwd).stdout.splitlines() if line.strip()]
+    if not status_lines:
+        return
+
+    tracked_paths = {line[3:] for line in status_lines}
+    has_head = git(["rev-parse", "--verify", "HEAD"], cwd, check=False).returncode == 0
+    allowed_setup_paths = {config_path, ".gitignore"}
+
+    if not has_head:
+        _ensure_local_git_identity(cwd)
+        git(["add", "-A"], cwd)
+        git(["commit", "-m", "chore: bootstrap autoresearch project"], cwd)
+        print("[autore] created the first git commit for this folder")
+        return
+
+    if tracked_paths.issubset(allowed_setup_paths):
+        _ensure_local_git_identity(cwd)
+        git(["add", *sorted(tracked_paths)], cwd)
+        if git(["status", "--porcelain"], cwd).stdout.strip():
+            git(["commit", "-m", "chore: add autoresearch setup"], cwd)
+            print("[autore] committed the generated autoresearch setup files")
+
+
+def _ensure_local_git_identity(cwd: Path) -> None:
+    if not git(["config", "user.name"], cwd, check=False).stdout.strip():
+        git(["config", "user.name", "autore"], cwd)
+    if not git(["config", "user.email"], cwd, check=False).stdout.strip():
+        git(["config", "user.email", "autore@example.com"], cwd)
+
+
 def cmd_status(config_path: str) -> int:
     config = ResearchConfig.load(config_path)
     path = Path(config.log_tsv)
@@ -231,9 +261,8 @@ def cmd_doctor(config_path: str, fix: bool = False) -> int:
         issues.append("Codex CLI missing: install 'codex'")
     if not Path(config_path).exists():
         if fix:
-            result = cmd_init(force=False, preset="auto")
-            if result == 0:
-                fixed.append(f"created {config_path}")
+            _write_config_template(Path(config_path), "auto")
+            fixed.append(f"created {config_path}")
         else:
             issues.append("autoresearch.toml missing: run 'autore init'")
     if fix:
@@ -401,6 +430,13 @@ def _ask_int(prompt: str, *, default: int) -> int:
     return int(answer)
 
 
+def _write_config_template(path: Path, preset: str) -> str:
+    resolved = detect_preset(Path.cwd()) if preset == "auto" else preset
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(template_for_preset(resolved))
+    return resolved
+
+
 def suggest_repo_defaults(cwd: Path, config: ResearchConfig | None = None) -> dict[str, str]:
     preset = detect_preset(cwd)
     if preset == "generic" and config is not None:
@@ -411,7 +447,7 @@ def suggest_repo_defaults(cwd: Path, config: ResearchConfig | None = None) -> di
             "metric_hint": "pytest coverage or collected tests",
             "guard_hint": "pytest",
             "use_case": "test coverage, bug-fix loops, type-safe refactors",
-            "next_step": "autore run --iterations 5",
+            "next_step": "autore start --iterations 5",
         }
     if preset == "node":
         return {
@@ -419,7 +455,7 @@ def suggest_repo_defaults(cwd: Path, config: ResearchConfig | None = None) -> di
             "metric_hint": "bundle size, test count, or build output metric",
             "guard_hint": "npm test",
             "use_case": "bundle reduction, frontend perf, test expansion",
-            "next_step": "autore run --iterations 5",
+            "next_step": "autore start --iterations 5",
         }
     return {
         "preset": "generic",

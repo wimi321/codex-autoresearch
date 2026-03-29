@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_nightly, cmd_onboard, cmd_quickstart, cmd_run, cmd_start, cmd_start_demo, cmd_status, cmd_watch, render_nightly_workflow, suggest_repo_defaults
 from codex_autoresearch.config import ResearchConfig
@@ -88,6 +89,16 @@ def test_cmd_doctor_fix_creates_missing_git_and_config(tmp_path: Path, monkeypat
     assert ".autoresearch/" in (tmp_path / ".gitignore").read_text()
 
 
+def test_cmd_doctor_fix_honors_custom_config_path(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("codex_autoresearch.cli.shutil.which", lambda _: "/usr/bin/codex")
+
+    assert cmd_doctor("configs/custom.toml", fix=True) == 0
+
+    assert (tmp_path / "configs" / "custom.toml").exists()
+    assert not (tmp_path / "autoresearch.toml").exists()
+
+
 def test_cmd_doctor_prints_config_summary_when_ready(tmp_path: Path, monkeypatch, capsys) -> None:
     monkeypatch.chdir(tmp_path)
     write_config(tmp_path)
@@ -102,7 +113,7 @@ def test_cmd_doctor_prints_config_summary_when_ready(tmp_path: Path, monkeypatch
     assert "- metric: collected tests (higher is better)" in output
     assert "- verify: pytest --collect-only -q" in output
     assert "- suggested preset: python" in output
-    assert "- next step: autore run --iterations 5" in output
+    assert "- next step: autore start --iterations 5" in output
 
 
 def test_cmd_run_prints_research_summary_when_iterations_missing(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -146,6 +157,19 @@ def test_cmd_start_creates_missing_config(tmp_path: Path, monkeypatch, capsys) -
     assert (tmp_path / "autoresearch.toml").exists()
 
 
+def test_cmd_start_creates_missing_custom_config_path(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / ".git").mkdir()
+    monkeypatch.setattr("codex_autoresearch.cli.shutil.which", lambda _: "/usr/bin/codex")
+    monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
+
+    assert cmd_start("configs/custom.toml", "auto", 3, False, True, None, False, ".autoresearch-demo", False) == 0
+
+    assert (tmp_path / "configs" / "custom.toml").exists()
+    assert not (tmp_path / "autoresearch.toml").exists()
+
+
 def test_cmd_start_stops_if_doctor_fails(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("codex_autoresearch.cli.cmd_doctor", lambda config_path, fix=False: 1)
@@ -169,6 +193,33 @@ def test_cmd_start_runs_doctor_with_fix_enabled(tmp_path: Path, monkeypatch) -> 
 
     assert cmd_start("autoresearch.toml", "generic", 3, False, True, None, False, ".autoresearch-demo", False) == 0
     assert calls == [("autoresearch.toml", True)]
+
+
+def test_cmd_start_bootstraps_first_commit_for_new_folder(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "score.txt").write_text("1\n")
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "verify.sh").write_text("#!/bin/sh\ncat score.txt\n")
+    (tmp_path / "scripts" / "verify.sh").chmod(0o755)
+    monkeypatch.setattr("codex_autoresearch.cli.shutil.which", lambda _: "/usr/bin/codex")
+
+    seen: dict[str, str] = {}
+
+    def fake_run(*args, **kwargs) -> int:
+        seen["head"] = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            cwd=tmp_path,
+            text=True,
+            capture_output=True,
+            check=False,
+        ).stdout.strip()
+        return 0
+
+    monkeypatch.setattr("codex_autoresearch.cli.cmd_run", fake_run)
+
+    assert cmd_start("autoresearch.toml", "generic", 2, False, True, None, False, ".autoresearch-demo", False) == 0
+    assert (tmp_path / "autoresearch.toml").exists()
+    assert seen["head"]
 
 
 def test_cmd_start_demo_creates_copyable_repo(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -218,6 +269,16 @@ def test_suggest_repo_defaults_for_python_repo(tmp_path: Path) -> None:
     suggestion = suggest_repo_defaults(tmp_path)
     assert suggestion["preset"] == "python"
     assert "pytest" in suggestion["guard_hint"]
+    assert suggestion["next_step"] == "autore start --iterations 5"
+
+
+def test_suggest_repo_defaults_for_node_repo_recommends_start(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text('{"name": "demo"}\n')
+
+    suggestion = suggest_repo_defaults(tmp_path)
+
+    assert suggestion["preset"] == "node"
+    assert suggestion["next_step"] == "autore start --iterations 5"
 
 
 def test_suggest_repo_defaults_from_config_when_repo_shape_is_generic(tmp_path: Path) -> None:
