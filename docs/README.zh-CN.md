@@ -158,7 +158,9 @@ autore ui --open-browser
 - 仓库健康状态面板
 - 一键修 setup 缺项
 - 一键 onboarding 和 nightly workflow 生成
-- 带终端输出的实时任务队列
+- 带实时终端输出的任务队列
+- 内置配置编辑器和保存按钮
+- 指标图表和运行时间线
 - 不用手翻 TSV 也能看最近结果
 
 ## 示例配置

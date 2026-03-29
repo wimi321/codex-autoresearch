@@ -162,7 +162,9 @@ The local UI gives you:
 - a repo health dashboard
 - one-click setup repair
 - one-click onboarding and nightly workflow generation
-- a live task queue with terminal output
+- a live task queue with streaming terminal output
+- a built-in config editor with save button
+- a metric chart and run timeline
 - recent results without opening TSV files by hand
 
 ## Example Configs

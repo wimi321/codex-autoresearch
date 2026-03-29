@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from typing import Any
 from urllib.parse import urlparse
 import webbrowser
@@ -53,6 +54,7 @@ def collect_dashboard_state(cwd: Path, config_path: str) -> dict[str, Any]:
             "verify": config.verify,
             "guard": config.guard or "",
             "iterations": config.iterations,
+            "min_delta": config.min_delta,
             "scope": config.scope,
             "log_tsv": config.log_tsv,
         }
@@ -70,12 +72,18 @@ def collect_dashboard_state(cwd: Path, config_path: str) -> dict[str, Any]:
         "suggestion": suggestion,
         "config": config_summary,
         "results": results,
+        "history": load_results_history(cwd, config_summary["log_tsv"] if config_summary else ".autoresearch/results.tsv"),
+        "timeline": load_run_timeline(cwd),
         "latestRun": latest_run,
         "updatedAt": datetime.now(timezone.utc).isoformat(),
     }
 
 
 def load_results_preview(cwd: Path, log_path: str) -> list[dict[str, str]]:
+    return load_results_history(cwd, log_path)[-8:]
+
+
+def load_results_history(cwd: Path, log_path: str) -> list[dict[str, str]]:
     path = cwd / log_path
     if not path.exists():
         return []
@@ -84,13 +92,78 @@ def load_results_preview(cwd: Path, log_path: str) -> list[dict[str, str]]:
         return []
     header = lines[0].split("\t")
     rows = []
-    for line in lines[-8:]:
+    for line in lines[1:]:
         if line == lines[0]:
             continue
         values = line.split("\t")
         row = dict(zip(header, values, strict=False))
         rows.append(row)
     return rows
+
+
+def load_run_timeline(cwd: Path) -> list[dict[str, str]]:
+    run_root = cwd / ".autoresearch" / "runs"
+    if not run_root.exists():
+        return []
+    items: list[dict[str, str]] = []
+    for run_dir in sorted(path for path in run_root.iterdir() if path.is_dir()):
+        stat = run_dir.stat()
+        items.append(
+            {
+                "name": run_dir.name,
+                "updatedAt": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                "stdout": str((run_dir / "codex.stdout.log").relative_to(cwd)) if (run_dir / "codex.stdout.log").exists() else "",
+                "stderr": str((run_dir / "codex.stderr.log").relative_to(cwd)) if (run_dir / "codex.stderr.log").exists() else "",
+            }
+        )
+    return items
+
+
+def render_config_toml(payload: dict[str, Any]) -> str:
+    goal = payload.get("goal", "").strip() or "Increase a mechanical metric with Codex"
+    metric = payload.get("metric", "").strip() or "example score"
+    direction = payload.get("direction", "higher").strip() or "higher"
+    verify = payload.get("verify", "").strip() or "./scripts/verify.sh"
+    guard = payload.get("guard", "").strip()
+    scope_items = [item.strip() for item in str(payload.get("scope", "src/**, tests/**")).split(",") if item.strip()]
+    iterations = int(payload.get("iterations", 5) or 5)
+    min_delta = float(payload.get("minDelta", 0.0) or 0.0)
+    branch_prefix = payload.get("branchPrefix", "autoresearch").strip() or "autoresearch"
+    log_tsv = payload.get("logTsv", ".autoresearch/results.tsv").strip() or ".autoresearch/results.tsv"
+    scratch_dir = payload.get("scratchDir", ".autoresearch").strip() or ".autoresearch"
+    prompt_file = payload.get("promptFile", ".autoresearch/prompt.md").strip() or ".autoresearch/prompt.md"
+    codex_command = payload.get("codexCommand", "codex exec").strip() or "codex exec"
+    scope_rendered = ", ".join(json.dumps(item) for item in scope_items)
+    return (
+        "[research]\n"
+        f"goal = {json.dumps(goal)}\n"
+        f"metric = {json.dumps(metric)}\n"
+        f"direction = {json.dumps(direction)}\n"
+        f"verify = {json.dumps(verify)}\n"
+        f"scope = [{scope_rendered}]\n"
+        f"guard = {json.dumps(guard)}\n"
+        f"iterations = {iterations}\n"
+        f"min_delta = {min_delta}\n\n"
+        "[runtime]\n"
+        f"codex_command = {json.dumps(codex_command)}\n"
+        "auto_stage_all = true\n"
+        "codex_timeout_seconds = 1800\n"
+        "verify_timeout_seconds = 300\n"
+        "guard_timeout_seconds = 300\n\n"
+        "[git]\n"
+        f"branch_prefix = {json.dumps(branch_prefix)}\n\n"
+        "[files]\n"
+        f"prompt_file = {json.dumps(prompt_file)}\n"
+        f"log_tsv = {json.dumps(log_tsv)}\n"
+        f"scratch_dir = {json.dumps(scratch_dir)}\n"
+    )
+
+
+def save_config(cwd: Path, config_path: str, payload: dict[str, Any]) -> Path:
+    target = cwd / config_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_config_toml(payload))
+    return target
 
 
 def build_action_command(action: str, payload: dict[str, Any]) -> list[str]:
@@ -142,6 +215,9 @@ class TaskStore:
     def list(self) -> list[dict[str, Any]]:
         with self._lock:
             return [asdict(task) for task in sorted(self._tasks.values(), key=lambda item: item.id, reverse=True)]
+
+    def snapshot_json(self) -> str:
+        return json.dumps({"tasks": self.list()}, sort_keys=True)
 
     def start(self, label: str, command: list[str]) -> dict[str, Any]:
         with self._lock:
@@ -202,10 +278,20 @@ def build_handler(repo_root: Path, config_path: str, task_store: TaskStore) -> t
             if parsed.path == "/api/tasks":
                 self._send_json({"tasks": task_store.list()})
                 return
+            if parsed.path == "/api/tasks/stream":
+                self._stream_tasks()
+                return
             self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
         def do_POST(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
+            if parsed.path == "/api/config":
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length) or b"{}")
+                config_target = payload.get("configPath", config_path)
+                save_config(repo_root, config_target, payload)
+                self._send_json({"saved": True, "configPath": config_target}, status=HTTPStatus.CREATED)
+                return
             if parsed.path != "/api/actions":
                 self.send_error(HTTPStatus.NOT_FOUND, "Not found")
                 return
@@ -238,6 +324,24 @@ def build_handler(repo_root: Path, config_path: str, task_store: TaskStore) -> t
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+
+        def _stream_tasks(self) -> None:
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+            last_payload = ""
+            try:
+                while True:
+                    payload = task_store.snapshot_json()
+                    if payload != last_payload:
+                        self.wfile.write(f"data: {payload}\n\n".encode())
+                        self.wfile.flush()
+                        last_payload = payload
+                    time.sleep(1.0)
+            except (BrokenPipeError, ConnectionResetError):
+                return
 
     return UIHandler
 
@@ -432,6 +536,8 @@ def render_ui_html() -> str:
     .span-5 { grid-column: span 5; }
     .span-6 { grid-column: span 6; }
     .span-4 { grid-column: span 4; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
     .panel h2 {
       font-size: 28px;
       margin-bottom: 14px;
@@ -495,6 +601,78 @@ def render_ui_html() -> str:
       padding: 13px 14px;
       font-size: 15px;
       color: var(--ink);
+    }
+    textarea, select {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.88);
+      border-radius: 16px;
+      padding: 13px 14px;
+      font-size: 15px;
+      color: var(--ink);
+      width: 100%;
+    }
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+      font-family: inherit;
+    }
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .config-grid .wide {
+      grid-column: 1 / -1;
+    }
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      align-items: center;
+    }
+    .status-note {
+      color: var(--accent-2);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .chart-shell {
+      background: rgba(255,255,255,0.72);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 14px;
+    }
+    .chart {
+      width: 100%;
+      height: 220px;
+      display: block;
+    }
+    .empty {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.7);
+      border: 1px dashed var(--line);
+    }
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+    .timeline-item {
+      position: relative;
+      padding: 14px 16px 14px 22px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.84);
+      border: 1px solid var(--line);
+    }
+    .timeline-item::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      top: 18px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
     }
     table {
       width: 100%;
@@ -570,8 +748,8 @@ def render_ui_html() -> str:
     }
     @media (max-width: 920px) {
       .hero-grid, .grid { grid-template-columns: 1fr; }
-      .span-7, .span-5, .span-6, .span-4 { grid-column: span 1; }
-      .actions, .form-grid, .stats { grid-template-columns: 1fr; }
+      .span-7, .span-5, .span-6, .span-4, .span-8, .span-12 { grid-column: span 1; }
+      .actions, .form-grid, .stats, .config-grid { grid-template-columns: 1fr; }
       h1 { max-width: none; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -634,8 +812,29 @@ def render_ui_html() -> str:
         <div id="configBody" class="small">No config loaded yet.</div>
       </div>
       <div class="panel span-6">
+        <h2 id="editorTitle">Config editor</h2>
+        <div class="config-grid">
+          <label class="field"><span id="fieldGoal">Goal</span><textarea id="goalInput" class="wide"></textarea></label>
+          <label class="field"><span id="fieldMetric">Metric</span><input id="metricInput" type="text" autocomplete="off"></label>
+          <label class="field"><span id="fieldDirection">Direction</span><select id="directionInput"><option value="higher">higher</option><option value="lower">lower</option></select></label>
+          <label class="field wide"><span id="fieldVerify">Verify command</span><textarea id="verifyInput"></textarea></label>
+          <label class="field wide"><span id="fieldGuard">Guard command</span><textarea id="guardInput"></textarea></label>
+          <label class="field wide"><span id="fieldScope">Scope</span><input id="scopeInput" type="text" autocomplete="off" placeholder="src/**, tests/**"></label>
+          <label class="field"><span id="fieldIterations">Default iterations</span><input id="defaultIterationsInput" type="number" min="1" value="5"></label>
+          <label class="field"><span id="fieldMinDelta">Min delta</span><input id="minDeltaInput" type="number" step="0.1" value="0.0"></label>
+        </div>
+        <div class="toolbar">
+          <button class="action" id="saveConfigBtn" type="button">Save config</button>
+          <span class="status-note" id="saveStatus"></span>
+        </div>
+      </div>
+      <div class="panel span-6">
         <h2 id="resultsTitle">Recent results</h2>
         <div id="resultsBody" class="small">No results yet.</div>
+      </div>
+      <div class="panel span-6">
+        <h2 id="chartTitle">Metric chart</h2>
+        <div id="chartBody" class="chart-shell"></div>
       </div>
       <div class="panel span-4">
         <h2 id="tasksTitle">Task queue</h2>
@@ -644,6 +843,10 @@ def render_ui_html() -> str:
       <div class="panel span-8">
         <h2 id="outputTitle">Task output</h2>
         <div class="terminal" id="terminal" aria-live="polite">No task selected yet.</div>
+      </div>
+      <div class="panel span-12">
+        <h2 id="timelineTitle">Run timeline</h2>
+        <div id="timelineBody" class="timeline"></div>
       </div>
     </section>
   </main>
@@ -670,6 +873,17 @@ def render_ui_html() -> str:
         metricHintLabel: "Metric hint",
         guardHintLabel: "Guard hint",
         configTitle: "Research config",
+        editorTitle: "Config editor",
+        fieldGoal: "Goal",
+        fieldMetric: "Metric",
+        fieldDirection: "Direction",
+        fieldVerify: "Verify command",
+        fieldGuard: "Guard command",
+        fieldScope: "Scope",
+        fieldIterations: "Default iterations",
+        fieldMinDelta: "Min delta",
+        chartTitle: "Metric chart",
+        timelineTitle: "Run timeline",
         resultsTitle: "Recent results",
         tasksTitle: "Task queue",
         outputTitle: "Task output",
@@ -678,6 +892,10 @@ def render_ui_html() -> str:
         noConfig: "No config loaded yet.",
         noResults: "No results yet.",
         noTask: "No task selected yet.",
+        noTimeline: "No run timeline yet.",
+        saveConfig: "Save config",
+        saveDone: "Config saved.",
+        saveFailed: "Could not save config.",
         copyNext: "Suggested next command"
       },
       zh: {
@@ -701,6 +919,17 @@ def render_ui_html() -> str:
         metricHintLabel: "指标建议",
         guardHintLabel: "守卫建议",
         configTitle: "研究配置",
+        editorTitle: "配置编辑器",
+        fieldGoal: "目标",
+        fieldMetric: "指标",
+        fieldDirection: "方向",
+        fieldVerify: "Verify 命令",
+        fieldGuard: "Guard 命令",
+        fieldScope: "作用范围",
+        fieldIterations: "默认迭代次数",
+        fieldMinDelta: "最小增量",
+        chartTitle: "指标图表",
+        timelineTitle: "运行时间线",
         resultsTitle: "最近结果",
         tasksTitle: "任务队列",
         outputTitle: "任务输出",
@@ -709,6 +938,10 @@ def render_ui_html() -> str:
         noConfig: "还没有加载到配置。",
         noResults: "还没有结果。",
         noTask: "还没有选中的任务。",
+        noTimeline: "还没有运行时间线。",
+        saveConfig: "保存配置",
+        saveDone: "配置已保存。",
+        saveFailed: "配置保存失败。",
         copyNext: "建议下一步命令"
       }
     };
@@ -725,6 +958,8 @@ def render_ui_html() -> str:
         const el = document.getElementById(key);
         if (el) el.textContent = value;
       }
+      const saveButton = document.getElementById("saveConfigBtn");
+      if (saveButton) saveButton.textContent = text.saveConfig;
       renderSelectedTask(window._tasks || []);
     }
 
@@ -756,7 +991,32 @@ def render_ui_html() -> str:
         method: "POST",
         body: JSON.stringify(buildPayload(action))
       });
-      await refreshTasks();
+      await refreshTasks(true);
+    }
+
+    async function saveConfig() {
+      const payload = {
+        configPath: document.getElementById("configPath").value || "autoresearch.toml",
+        goal: document.getElementById("goalInput").value,
+        metric: document.getElementById("metricInput").value,
+        direction: document.getElementById("directionInput").value,
+        verify: document.getElementById("verifyInput").value,
+        guard: document.getElementById("guardInput").value,
+        scope: document.getElementById("scopeInput").value,
+        iterations: Number(document.getElementById("defaultIterationsInput").value || "5"),
+        minDelta: Number(document.getElementById("minDeltaInput").value || "0"),
+      };
+      const note = document.getElementById("saveStatus");
+      try {
+        await api("/api/config", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        note.textContent = copy[lang].saveDone;
+        await refreshState();
+      } catch (error) {
+        note.textContent = copy[lang].saveFailed;
+      }
     }
 
     function renderState(state) {
@@ -784,6 +1044,14 @@ def render_ui_html() -> str:
         <div class="small" style="margin-top:10px;"><strong>Verify</strong><div>${config.verify}</div></div>
         <div class="small" style="margin-top:10px;"><strong>Guard</strong><div>${config.guard || "none"}</div></div>
       ` : copy[lang].noConfig;
+      document.getElementById("goalInput").value = config ? config.goal : "";
+      document.getElementById("metricInput").value = config ? config.metric : "";
+      document.getElementById("directionInput").value = config ? config.direction : "higher";
+      document.getElementById("verifyInput").value = config ? config.verify : "";
+      document.getElementById("guardInput").value = config ? config.guard : "";
+      document.getElementById("scopeInput").value = config ? (config.scope || []).join(", ") : "";
+      document.getElementById("defaultIterationsInput").value = config && config.iterations ? config.iterations : 5;
+      document.getElementById("minDeltaInput").value = config && typeof config.min_delta !== "undefined" ? config.min_delta : 0;
       const rows = state.results || [];
       document.getElementById("resultsBody").innerHTML = rows.length ? `
         <table>
@@ -791,6 +1059,61 @@ def render_ui_html() -> str:
           <tbody>${rows.map(row => `<tr><td>${row.iteration || "-"}</td><td>${row.status || "-"}</td><td>${row.metric || "-"}</td><td>${row.guard || "-"}</td></tr>`).join("")}</tbody>
         </table>
       ` : copy[lang].noResults;
+      renderChart(state.history || []);
+      renderTimeline(state.timeline || [], state.history || []);
+    }
+
+    function renderChart(history) {
+      const host = document.getElementById("chartBody");
+      if (!history.length) {
+        host.innerHTML = `<div class="empty">${copy[lang].noResults}</div>`;
+        return;
+      }
+      const values = history.map(item => Number(item.metric || 0));
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const span = Math.max(max - min, 1);
+      const points = values.map((value, index) => {
+        const x = 30 + (index * (520 / Math.max(values.length - 1, 1)));
+        const y = 180 - ((value - min) / span) * 140;
+        return `${x},${y}`;
+      }).join(" ");
+      const circles = values.map((value, index) => {
+        const x = 30 + (index * (520 / Math.max(values.length - 1, 1)));
+        const y = 180 - ((value - min) / span) * 140;
+        return `<circle cx="${x}" cy="${y}" r="5" fill="#d55c3f"></circle>`;
+      }).join("");
+      host.innerHTML = `
+        <svg class="chart" viewBox="0 0 580 220" role="img" aria-label="Metric history chart">
+          <rect x="0" y="0" width="580" height="220" rx="18" fill="rgba(255,255,255,0.38)"></rect>
+          <line x1="30" y1="180" x2="550" y2="180" stroke="rgba(30,36,48,0.14)"></line>
+          <line x1="30" y1="40" x2="30" y2="180" stroke="rgba(30,36,48,0.14)"></line>
+          <polyline fill="none" stroke="#18656b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="${points}"></polyline>
+          ${circles}
+          <text x="32" y="28" fill="#5f6978" font-size="12">max ${max.toFixed(2)}</text>
+          <text x="32" y="200" fill="#5f6978" font-size="12">min ${min.toFixed(2)}</text>
+        </svg>
+      `;
+    }
+
+    function renderTimeline(timeline, history) {
+      const host = document.getElementById("timelineBody");
+      const historyCards = history.slice(-6).map(item => `
+        <div class="timeline-item">
+          <strong>Iteration ${item.iteration || "-"}</strong>
+          <div class="small">status: ${item.status || "-"} | metric: ${item.metric || "-"} | guard: ${item.guard || "-"}</div>
+          <div class="small">${item.summary || ""}</div>
+        </div>
+      `);
+      const runCards = timeline.slice(-6).reverse().map(item => `
+        <div class="timeline-item">
+          <strong>${item.name}</strong>
+          <div class="small">${item.updatedAt}</div>
+          <div class="small">${item.stderr || item.stdout || ""}</div>
+        </div>
+      `);
+      const cards = [...historyCards, ...runCards];
+      host.innerHTML = cards.length ? cards.join("") : `<div class="empty">${copy[lang].noTimeline}</div>`;
     }
 
     function renderSelectedTask(tasks) {
@@ -813,10 +1136,11 @@ def render_ui_html() -> str:
       renderState(state);
     }
 
-    async function refreshTasks() {
-      const payload = await api("/api/tasks");
+    async function refreshTasks(selectLatest = false, payloadOverride = null) {
+      const payload = payloadOverride || await api("/api/tasks");
       const tasks = payload.tasks || [];
       window._tasks = tasks;
+      if (selectLatest && tasks[0]) selectedTaskId = tasks[0].id;
       document.getElementById("taskList").innerHTML = tasks.map(task => `
         <button class="task ${task.id === selectedTaskId ? "active" : ""}" data-id="${task.id}" type="button">
           <div><strong>${task.label}</strong><div class="small">${task.command.join(" ")}</div></div>
@@ -838,11 +1162,17 @@ def render_ui_html() -> str:
     document.querySelectorAll("[data-action]").forEach(button => {
       button.onclick = () => runAction(button.dataset.action);
     });
+    document.getElementById("saveConfigBtn").onclick = () => saveConfig();
+    const events = new EventSource("/api/tasks/stream");
+    events.onmessage = (event) => {
+      try {
+        refreshTasks(false, JSON.parse(event.data));
+      } catch (error) {}
+    };
     setLang("en");
     refreshState();
     refreshTasks();
     setInterval(refreshState, 3000);
-    setInterval(refreshTasks, 1500);
   </script>
 </body>
 </html>"""

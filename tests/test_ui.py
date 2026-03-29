@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from codex_autoresearch.ui import build_action_command, collect_dashboard_state, load_results_preview
+from codex_autoresearch.ui import build_action_command, collect_dashboard_state, load_results_history, load_results_preview, load_run_timeline, render_config_toml, save_config
 
 
 def test_build_action_command_for_start_and_nightly() -> None:
@@ -71,3 +71,47 @@ def test_collect_dashboard_state_reads_config_and_results(tmp_path: Path, monkey
     assert state["codexInstalled"] is True
     assert state["suggestion"]["preset"] == "python"
     assert state["config"]["goal"] == "Increase coverage"
+    assert state["history"][0]["status"] == "baseline"
+
+
+def test_render_and_save_config(tmp_path: Path) -> None:
+    rendered = render_config_toml(
+        {
+            "goal": "Shrink bundle",
+            "metric": "bundle kb",
+            "direction": "lower",
+            "verify": "npm run build",
+            "guard": "npm test",
+            "scope": "src/**, app/**",
+            "iterations": 8,
+            "minDelta": 1.5,
+        }
+    )
+
+    assert 'goal = "Shrink bundle"' in rendered
+    assert 'direction = "lower"' in rendered
+    assert 'scope = ["src/**", "app/**"]' in rendered
+
+    path = save_config(tmp_path, "autoresearch.toml", {"goal": "Hello", "metric": "score"})
+    assert path.exists()
+    assert 'goal = "Hello"' in path.read_text()
+
+
+def test_load_results_history_and_run_timeline(tmp_path: Path) -> None:
+    results = tmp_path / ".autoresearch" / "results.tsv"
+    results.parent.mkdir(parents=True)
+    results.write_text(
+        "iteration\tcommit\tmetric\tdelta\tguard\tstatus\tsummary\n"
+        "0\tbaseline\t12.000000\t0.000000\t-\tbaseline\tstart\n"
+        "1\tabc\t11.000000\t1.000000\tpass\tkeep\tbetter\n"
+    )
+    run_dir = tmp_path / ".autoresearch" / "runs" / "iteration-0001"
+    run_dir.mkdir(parents=True)
+    (run_dir / "codex.stderr.log").write_text("stderr")
+
+    history = load_results_history(tmp_path, ".autoresearch/results.tsv")
+    timeline = load_run_timeline(tmp_path)
+
+    assert len(history) == 2
+    assert history[-1]["summary"] == "better"
+    assert timeline[-1]["name"] == "iteration-0001"
