@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 
 from .config import ResearchConfig, detect_preset, template_for_preset
@@ -20,6 +21,8 @@ def build_parser() -> argparse.ArgumentParser:
     start_parser.add_argument("--resume", action="store_true")
     start_parser.add_argument("--skip-branch", action="store_true")
     start_parser.add_argument("--branch")
+    start_parser.add_argument("--demo", action="store_true")
+    start_parser.add_argument("--demo-dir", default=".autoresearch-demo")
 
     init_parser = sub.add_parser("init", help="write a starter autoresearch.toml")
     init_parser.add_argument("--force", action="store_true")
@@ -66,7 +69,12 @@ def cmd_start(
     resume: bool,
     skip_branch: bool,
     branch: str | None,
+    demo: bool,
+    demo_dir: str,
 ) -> int:
+    if demo:
+        return cmd_start_demo(demo_dir)
+
     config = Path(config_path)
     if not config.exists():
         print("[autore] no config found, generating one for this repo")
@@ -91,6 +99,26 @@ def cmd_start(
         skip_branch=skip_branch,
         resume=resume,
     )
+
+
+def cmd_start_demo(demo_dir: str) -> int:
+    source = Path(__file__).resolve().parents[2] / "examples" / "demo-repo"
+    target = Path(demo_dir).resolve()
+    if target.exists():
+        print(f"Demo directory already exists: {target}", file=sys.stderr)
+        return 1
+
+    shutil.copytree(source, target)
+    subprocess.run(["git", "init", "-b", "main"], cwd=target, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "demo"], cwd=target, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "demo@example.com"], cwd=target, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=target, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "init demo"], cwd=target, check=True, text=True, capture_output=True)
+
+    print(f"[autore] demo created at {target}")
+    print(f"[autore] next: cd {target}")
+    print("[autore] then run: autore start --resume --skip-branch")
+    return 0
 
 
 def cmd_run(
@@ -187,7 +215,16 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     if args.command == "start":
-        return cmd_start(args.config, args.preset, args.iterations, args.resume, args.skip_branch, args.branch)
+        return cmd_start(
+            args.config,
+            args.preset,
+            args.iterations,
+            args.resume,
+            args.skip_branch,
+            args.branch,
+            args.demo,
+            args.demo_dir,
+        )
     if args.command == "init":
         return cmd_init(args.force, args.preset)
     if args.command == "run":

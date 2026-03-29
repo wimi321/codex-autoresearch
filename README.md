@@ -56,6 +56,14 @@ During long runs, live execution logs are written under `.autoresearch/runs/iter
 autore start
 ```
 
+### Fastest proof
+
+```bash
+autore start --demo
+cd .autoresearch-demo
+autore start --resume --skip-branch
+```
+
 ### Resume an existing branch
 
 ```bash
@@ -98,6 +106,7 @@ iterations = 10
 
 - `autore init --preset auto`: generate a starter config based on the repo
 - `autore start`: one-command happy path for first-time usage
+- `autore start --demo`: create the smallest runnable demo repo
 - `autore doctor`: verify `git`, `codex`, and config prerequisites
 - `autore run --iterations N`: run a bounded research loop
 - `autore run --resume --iterations N`: continue an existing research branch

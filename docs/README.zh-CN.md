@@ -22,11 +22,20 @@ autore start
 
 ```bash
 autore start
+autore start --demo
 autore doctor
 autore run --iterations 5
 autore start --resume
 autore status
 autore watch --follow
+```
+
+## 最快验证
+
+```bash
+autore start --demo
+cd .autoresearch-demo
+autore start --resume --skip-branch
 ```
 
 ## 最小可运行 demo

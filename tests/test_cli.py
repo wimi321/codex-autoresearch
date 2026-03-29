@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_run, cmd_start, cmd_status, cmd_watch
+from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_run, cmd_start, cmd_start_demo, cmd_status, cmd_watch
 
 
 def write_config(tmp_path: Path, *, iterations: int | None = 3) -> Path:
@@ -123,7 +123,7 @@ def test_cmd_start_creates_missing_config(tmp_path: Path, monkeypatch, capsys) -
     monkeypatch.setattr("codex_autoresearch.cli.shutil.which", lambda _: "/usr/bin/codex")
     monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
 
-    assert cmd_start("autoresearch.toml", "auto", 3, False, True, None) == 0
+    assert cmd_start("autoresearch.toml", "auto", 3, False, True, None, False, ".autoresearch-demo") == 0
 
     output = capsys.readouterr().out
     assert "no config found" in output
@@ -135,4 +135,17 @@ def test_cmd_start_stops_if_doctor_fails(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("codex_autoresearch.cli.cmd_doctor", lambda config_path: 1)
     monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
 
-    assert cmd_start("autoresearch.toml", "generic", 3, False, True, None) == 1
+    assert cmd_start("autoresearch.toml", "generic", 3, False, True, None, False, ".autoresearch-demo") == 1
+
+
+def test_cmd_start_demo_creates_copyable_repo(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert cmd_start_demo("demo-out") == 0
+
+    demo = tmp_path / "demo-out"
+    assert (demo / "autoresearch.toml").exists()
+    assert (demo / "score.txt").read_text().strip() == "10"
+    output = capsys.readouterr().out
+    assert "demo created at" in output
+    assert "autore start --resume --skip-branch" in output
