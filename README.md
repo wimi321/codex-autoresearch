@@ -12,7 +12,7 @@ It takes the core ideas from [karpathy/autoresearch](https://github.com/karpathy
 
 ## At a Glance
 
-- One command setup: `make setup`
+- One command setup: `autore start`
 - Real runner, not just prompts
 - Works with `codex exec`
 - Supports `watch`, `resume`, and bounded loops
@@ -36,22 +36,15 @@ flowchart LR
 ## One command setup
 
 ```bash
-make setup
+autore start
 ```
 
-That command:
+If the repo does not have `autoresearch.toml` yet, `autore start` will:
 
-1. creates a virtualenv
-2. installs the package
-3. writes an auto-detected `autoresearch.toml`
-4. runs `autore doctor`
-
-Then run:
-
-```bash
-. .venv/bin/activate
-autore run --iterations 5
-```
+1. auto-detect a preset
+2. create `autoresearch.toml`
+3. run `autore doctor`
+4. run a bounded research loop
 
 During long runs, live execution logs are written under `.autoresearch/runs/iteration-XXXX/`.
 
@@ -60,15 +53,13 @@ During long runs, live execution logs are written under `.autoresearch/runs/iter
 ### Fast path
 
 ```bash
-autore init --preset auto
-autore doctor
-autore run --iterations 5
+autore start
 ```
 
 ### Resume an existing branch
 
 ```bash
-autore run --resume --iterations 5
+autore start --resume
 ```
 
 ### Smallest demo
@@ -106,6 +97,7 @@ iterations = 10
 ## Commands
 
 - `autore init --preset auto`: generate a starter config based on the repo
+- `autore start`: one-command happy path for first-time usage
 - `autore doctor`: verify `git`, `codex`, and config prerequisites
 - `autore run --iterations N`: run a bounded research loop
 - `autore run --resume --iterations N`: continue an existing research branch
@@ -171,6 +163,7 @@ This project treats Codex as the autonomous worker inside a strict outer loop:
 ## Why it feels simple
 
 - `autore init --preset auto` picks a sane starter config
+- `autore start` collapses setup and the first run into one command
 - `autore doctor` tells you if the repo is actually runnable
 - `autore run` establishes a baseline and runs bounded Codex iterations
 - `autore run --resume` continues where you left off

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_run, cmd_status, cmd_watch
+from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_run, cmd_start, cmd_status, cmd_watch
 
 
 def write_config(tmp_path: Path, *, iterations: int | None = 3) -> Path:
@@ -114,3 +114,25 @@ def test_cmd_watch_reads_results_file(tmp_path: Path, monkeypatch, capsys) -> No
     assert cmd_watch("autoresearch.toml", stream="results", follow=False, interval=0.01, lines=20) == 0
 
     assert "baseline" in capsys.readouterr().out
+
+
+def test_cmd_start_creates_missing_config(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "tests").mkdir()
+    (tmp_path / ".git").mkdir()
+    monkeypatch.setattr("codex_autoresearch.cli.shutil.which", lambda _: "/usr/bin/codex")
+    monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
+
+    assert cmd_start("autoresearch.toml", "auto", 3, False, True, None) == 0
+
+    output = capsys.readouterr().out
+    assert "no config found" in output
+    assert (tmp_path / "autoresearch.toml").exists()
+
+
+def test_cmd_start_stops_if_doctor_fails(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("codex_autoresearch.cli.cmd_doctor", lambda config_path: 1)
+    monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
+
+    assert cmd_start("autoresearch.toml", "generic", 3, False, True, None) == 1

@@ -13,6 +13,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="autore", description="Codex-native autonomous research loops")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    start_parser = sub.add_parser("start", help="one-command happy path: init, doctor, run")
+    start_parser.add_argument("--config", default="autoresearch.toml")
+    start_parser.add_argument("--preset", choices=["auto", "python", "node", "generic"], default="auto")
+    start_parser.add_argument("--iterations", type=int, default=5)
+    start_parser.add_argument("--resume", action="store_true")
+    start_parser.add_argument("--skip-branch", action="store_true")
+    start_parser.add_argument("--branch")
+
     init_parser = sub.add_parser("init", help="write a starter autoresearch.toml")
     init_parser.add_argument("--force", action="store_true")
     init_parser.add_argument("--preset", choices=["auto", "python", "node", "generic"], default="auto")
@@ -49,6 +57,40 @@ def cmd_init(force: bool, preset: str) -> int:
     path.write_text(template_for_preset(resolved))
     print(f"Wrote autoresearch.toml using '{resolved}' preset")
     return 0
+
+
+def cmd_start(
+    config_path: str,
+    preset: str,
+    iterations: int,
+    resume: bool,
+    skip_branch: bool,
+    branch: str | None,
+) -> int:
+    config = Path(config_path)
+    if not config.exists():
+        print("[autore] no config found, generating one for this repo")
+        original = Path("autoresearch.toml")
+        target = config.name
+        if target != original.name:
+            Path(target).write_text(template_for_preset(detect_preset(Path.cwd()) if preset == "auto" else preset))
+            print(f"Wrote {target}")
+        else:
+            result = cmd_init(force=False, preset=preset)
+            if result != 0:
+                return result
+
+    doctor_result = cmd_doctor(config_path)
+    if doctor_result != 0:
+        return doctor_result
+
+    return cmd_run(
+        config_path,
+        iterations_override=iterations,
+        branch=branch,
+        skip_branch=skip_branch,
+        resume=resume,
+    )
 
 
 def cmd_run(
@@ -144,6 +186,8 @@ def cmd_watch(config_path: str, stream: str, follow: bool, interval: float, line
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if args.command == "start":
+        return cmd_start(args.config, args.preset, args.iterations, args.resume, args.skip_branch, args.branch)
     if args.command == "init":
         return cmd_init(args.force, args.preset)
     if args.command == "run":
