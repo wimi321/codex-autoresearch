@@ -71,6 +71,12 @@ def build_parser() -> argparse.ArgumentParser:
     nightly_parser.add_argument("--branch", default="main")
     nightly_parser.add_argument("--force", action="store_true")
 
+    ui_parser = sub.add_parser("ui", help="open a local web UI for setup and runs")
+    ui_parser.add_argument("--config", default="autoresearch.toml")
+    ui_parser.add_argument("--host", default="127.0.0.1")
+    ui_parser.add_argument("--port", type=int, default=8765)
+    ui_parser.add_argument("--open-browser", action="store_true")
+
     return parser
 
 
@@ -547,6 +553,10 @@ def main() -> int:
         return cmd_onboard(args.config, args.workflow_path, args.iterations, args.write_nightly, args.force)
     if args.command == "nightly":
         return cmd_nightly(args.config, args.workflow_path, args.iterations, args.python_version, args.branch, args.force)
+    if args.command == "ui":
+        from .ui import cmd_ui
+
+        return cmd_ui(args.config, args.host, args.port, args.open_browser)
     parser.error("unknown command")
     return 2
 

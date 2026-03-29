@@ -26,6 +26,12 @@ autore start --demo --run
 autore start
 ```
 
+如果你更想点按钮而不是记命令：
+
+```bash
+autore ui --open-browser
+```
+
 如果你想让工具先把仓库整理好，再告诉你下一步复制什么：
 
 ```bash
@@ -79,13 +85,19 @@ autore start
 autore onboard
 ```
 
-### 4. 生成夜跑 GitHub Actions
+### 4. 打开本地 UI
+
+```bash
+autore ui --open-browser
+```
+
+### 5. 生成夜跑 GitHub Actions
 
 ```bash
 autore nightly --force
 ```
 
-### 5. 观察长任务
+### 6. 观察长任务
 
 ```bash
 autore watch --follow
@@ -93,7 +105,7 @@ autore watch --stream stdout --follow
 autore watch --stream results
 ```
 
-### 6. 继续上一次进度
+### 7. 继续上一次进度
 
 ```bash
 autore start --resume
@@ -132,6 +144,22 @@ autore onboard --write-nightly
 - 告诉你这个仓库最适合的使用场景
 - 直接打印下一步可复制命令
 - 可选生成 `.github/workflows/autoresearch-nightly.yml`
+
+## 可视化 UI
+
+如果你不想总在终端里切命令，直接运行：
+
+```bash
+autore ui --open-browser
+```
+
+这个本地 UI 提供：
+
+- 仓库健康状态面板
+- 一键修 setup 缺项
+- 一键 onboarding 和 nightly workflow 生成
+- 带终端输出的实时任务队列
+- 不用手翻 TSV 也能看最近结果
 
 ## 示例配置
 

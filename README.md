@@ -30,6 +30,12 @@ If you want to use it on your own repo:
 autore start
 ```
 
+If you want a visual control room instead of memorizing commands:
+
+```bash
+autore ui --open-browser
+```
+
 If you want the tool to prepare the repo and tell you exactly what to do next:
 
 ```bash
@@ -83,13 +89,19 @@ autore start
 autore onboard
 ```
 
-### 4. Create a nightly GitHub Actions workflow
+### 4. Open the local UI
+
+```bash
+autore ui --open-browser
+```
+
+### 5. Create a nightly GitHub Actions workflow
 
 ```bash
 autore nightly --force
 ```
 
-### 5. Watch a long run
+### 6. Watch a long run
 
 ```bash
 autore watch --follow
@@ -97,7 +109,7 @@ autore watch --stream stdout --follow
 autore watch --stream results
 ```
 
-### 6. Resume where you left off
+### 7. Resume where you left off
 
 ```bash
 autore start --resume
@@ -136,6 +148,22 @@ It will:
 - explain the best use case for this repo
 - print the exact next commands to copy
 - optionally generate `.github/workflows/autoresearch-nightly.yml`
+
+## Visual UI
+
+If you prefer clicking over remembering commands, run:
+
+```bash
+autore ui --open-browser
+```
+
+The local UI gives you:
+
+- a repo health dashboard
+- one-click setup repair
+- one-click onboarding and nightly workflow generation
+- a live task queue with terminal output
+- recent results without opening TSV files by hand
 
 ## Example Configs
 
