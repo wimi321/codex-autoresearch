@@ -165,7 +165,19 @@ def test_cmd_start_demo_creates_copyable_repo(tmp_path: Path, monkeypatch, capsy
 
 def test_cmd_start_demo_can_run_immediately(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
+    def fake_run(*args, **kwargs):
+        demo = tmp_path / "demo-run"
+        scratch = demo / ".autoresearch"
+        scratch.mkdir(parents=True, exist_ok=True)
+        (scratch / "results.tsv").write_text(
+            "iteration\tcommit\tmetric\tdelta\tguard\tstatus\tsummary\n"
+            "0\tbaseline\t10.000000\t0.000000\t-\tbaseline\tinitial baseline\n"
+            "1\tabc1234\t0.000000\t10.000000\t-\tkeep\tdemo success\n"
+        )
+        (demo / "score.txt").write_text("0\n")
+        return 0
+
+    monkeypatch.setattr("codex_autoresearch.cli.cmd_run", fake_run)
 
     assert cmd_start("autoresearch.toml", "auto", 1, False, True, None, True, "demo-run", True) == 0
     assert (tmp_path / "demo-run" / "autoresearch.toml").exists()

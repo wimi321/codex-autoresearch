@@ -133,13 +133,16 @@ def cmd_start_demo(demo_dir: str, *, run_demo: bool, iterations: int) -> int:
     previous = Path.cwd()
     try:
         os.chdir(target)
-        return cmd_run(
+        result = cmd_run(
             "autoresearch.toml",
             iterations_override=iterations,
             branch=None,
             skip_branch=True,
             resume=True,
         )
+        if result == 0:
+            _print_demo_summary(target)
+        return result
     finally:
         os.chdir(previous)
 
@@ -295,6 +298,19 @@ def _ask_int(prompt: str, *, default: int) -> int:
     if not answer:
         return default
     return int(answer)
+
+
+def _print_demo_summary(target: Path) -> None:
+    score_path = target / "score.txt"
+    results_path = target / ".autoresearch" / "results.tsv"
+    print("[autore] demo summary:")
+    if score_path.exists():
+        print(f"- score.txt: {score_path.read_text().strip()}")
+    if results_path.exists():
+        lines = [line for line in results_path.read_text().splitlines() if line.strip()]
+        if len(lines) > 1:
+            print(f"- latest result: {lines[-1]}")
+        print(f"- results log: {results_path}")
 
 
 def main() -> int:
