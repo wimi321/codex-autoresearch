@@ -12,12 +12,13 @@ import subprocess
 import sys
 import threading
 import time
+import tempfile
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 import webbrowser
 
 from .cli import suggest_repo_defaults
-from .config import ResearchConfig
+from .config import GENERIC_TEMPLATE, NODE_TEMPLATE, PYTHON_TEMPLATE, ResearchConfig
 
 
 def cmd_ui(config_path: str, host: str, port: int, open_browser: bool) -> int:
@@ -117,6 +118,43 @@ def load_run_timeline(cwd: Path) -> list[dict[str, str]]:
             }
         )
     return items
+
+
+def preset_payload(preset: str) -> dict[str, Any]:
+    template = {
+        "python": PYTHON_TEMPLATE,
+        "node": NODE_TEMPLATE,
+        "generic": GENERIC_TEMPLATE,
+    }.get(preset, GENERIC_TEMPLATE)
+    with tempfile.NamedTemporaryFile("w+", suffix=".toml", delete=False) as handle:
+        handle.write(template)
+        handle.flush()
+        temp_path = Path(handle.name)
+    try:
+        config = ResearchConfig.load(temp_path)
+        return {
+            "goal": config.goal,
+            "metric": config.metric,
+            "direction": config.direction,
+            "verify": config.verify,
+            "guard": config.guard or "",
+            "iterations": config.iterations or 5,
+            "minDelta": config.min_delta,
+            "scope": ", ".join(config.scope),
+        }
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def read_log_excerpt(cwd: Path, relative_path: str, lines: int = 120) -> dict[str, Any]:
+    target = (cwd / relative_path).resolve()
+    if cwd.resolve() not in target.parents and target != cwd.resolve():
+        raise ValueError("log path must stay inside the repository")
+    if not target.exists():
+        return {"path": relative_path, "content": "", "exists": False}
+    text = target.read_text()
+    excerpt = "\n".join(text.splitlines()[-lines:])
+    return {"path": relative_path, "content": excerpt, "exists": True}
 
 
 def render_config_toml(payload: dict[str, Any]) -> str:
@@ -280,6 +318,15 @@ def build_handler(repo_root: Path, config_path: str, task_store: TaskStore) -> t
                 return
             if parsed.path == "/api/tasks/stream":
                 self._stream_tasks()
+                return
+            if parsed.path.startswith("/api/preset/"):
+                preset = parsed.path.rsplit("/", 1)[-1]
+                self._send_json({"preset": preset, "values": preset_payload(preset)})
+                return
+            if parsed.path == "/api/log":
+                query = parse_qs(parsed.query)
+                path = query.get("path", [""])[0]
+                self._send_json(read_log_excerpt(repo_root, path))
                 return
             self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
@@ -621,6 +668,12 @@ def render_ui_html() -> str:
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
     }
+    .preset-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
     .config-grid .wide {
       grid-column: 1 / -1;
     }
@@ -673,6 +726,14 @@ def render_ui_html() -> str:
       height: 8px;
       border-radius: 50%;
       background: var(--accent);
+    }
+    .linkish {
+      border: 0;
+      background: transparent;
+      color: var(--accent-2);
+      font-weight: 700;
+      padding: 0;
+      cursor: pointer;
     }
     table {
       width: 100%;
@@ -814,6 +875,11 @@ def render_ui_html() -> str:
       <div class="panel span-6">
         <h2 id="editorTitle">Config editor</h2>
         <div class="config-grid">
+          <div class="preset-row wide">
+            <button class="ghost" id="presetPythonBtn" type="button">Use Python preset</button>
+            <button class="ghost" id="presetNodeBtn" type="button">Use Node preset</button>
+            <button class="ghost" id="presetGenericBtn" type="button">Use Generic preset</button>
+          </div>
           <label class="field"><span id="fieldGoal">Goal</span><textarea id="goalInput" class="wide"></textarea></label>
           <label class="field"><span id="fieldMetric">Metric</span><input id="metricInput" type="text" autocomplete="off"></label>
           <label class="field"><span id="fieldDirection">Direction</span><select id="directionInput"><option value="higher">higher</option><option value="lower">lower</option></select></label>
@@ -848,6 +914,11 @@ def render_ui_html() -> str:
         <h2 id="timelineTitle">Run timeline</h2>
         <div id="timelineBody" class="timeline"></div>
       </div>
+      <div class="panel span-12">
+        <h2 id="logTitle">Run log viewer</h2>
+        <div class="small" id="logMeta">Pick a run log from the timeline.</div>
+        <div class="terminal" id="logViewer">No log selected yet.</div>
+      </div>
     </section>
   </main>
   <script>
@@ -875,6 +946,9 @@ def render_ui_html() -> str:
         configTitle: "Research config",
         editorTitle: "Config editor",
         fieldGoal: "Goal",
+        presetPythonBtn: "Use Python preset",
+        presetNodeBtn: "Use Node preset",
+        presetGenericBtn: "Use Generic preset",
         fieldMetric: "Metric",
         fieldDirection: "Direction",
         fieldVerify: "Verify command",
@@ -884,6 +958,7 @@ def render_ui_html() -> str:
         fieldMinDelta: "Min delta",
         chartTitle: "Metric chart",
         timelineTitle: "Run timeline",
+        logTitle: "Run log viewer",
         resultsTitle: "Recent results",
         tasksTitle: "Task queue",
         outputTitle: "Task output",
@@ -893,6 +968,7 @@ def render_ui_html() -> str:
         noResults: "No results yet.",
         noTask: "No task selected yet.",
         noTimeline: "No run timeline yet.",
+        noLog: "No log selected yet.",
         saveConfig: "Save config",
         saveDone: "Config saved.",
         saveFailed: "Could not save config.",
@@ -921,6 +997,9 @@ def render_ui_html() -> str:
         configTitle: "研究配置",
         editorTitle: "配置编辑器",
         fieldGoal: "目标",
+        presetPythonBtn: "填入 Python 预设",
+        presetNodeBtn: "填入 Node 预设",
+        presetGenericBtn: "填入 Generic 预设",
         fieldMetric: "指标",
         fieldDirection: "方向",
         fieldVerify: "Verify 命令",
@@ -930,6 +1009,7 @@ def render_ui_html() -> str:
         fieldMinDelta: "最小增量",
         chartTitle: "指标图表",
         timelineTitle: "运行时间线",
+        logTitle: "运行日志查看器",
         resultsTitle: "最近结果",
         tasksTitle: "任务队列",
         outputTitle: "任务输出",
@@ -939,6 +1019,7 @@ def render_ui_html() -> str:
         noResults: "还没有结果。",
         noTask: "还没有选中的任务。",
         noTimeline: "还没有运行时间线。",
+        noLog: "还没有选中的日志。",
         saveConfig: "保存配置",
         saveDone: "配置已保存。",
         saveFailed: "配置保存失败。",
@@ -947,6 +1028,7 @@ def render_ui_html() -> str:
     };
     let lang = "en";
     let selectedTaskId = null;
+    let selectedLogPath = "";
 
     function setLang(next) {
       lang = next;
@@ -1019,6 +1101,27 @@ def render_ui_html() -> str:
       }
     }
 
+    async function loadPreset(preset) {
+      const response = await api(`/api/preset/${preset}`);
+      const values = response.values || {};
+      document.getElementById("goalInput").value = values.goal || "";
+      document.getElementById("metricInput").value = values.metric || "";
+      document.getElementById("directionInput").value = values.direction || "higher";
+      document.getElementById("verifyInput").value = values.verify || "";
+      document.getElementById("guardInput").value = values.guard || "";
+      document.getElementById("scopeInput").value = values.scope || "";
+      document.getElementById("defaultIterationsInput").value = values.iterations || 5;
+      document.getElementById("minDeltaInput").value = values.minDelta || 0;
+      document.getElementById("saveStatus").textContent = "";
+    }
+
+    async function loadLog(path) {
+      selectedLogPath = path;
+      const payload = await api(`/api/log?path=${encodeURIComponent(path)}`);
+      document.getElementById("logMeta").textContent = payload.path || path;
+      document.getElementById("logViewer").textContent = payload.exists ? (payload.content || "") : copy[lang].noLog;
+    }
+
     function renderState(state) {
       document.getElementById("repoName").textContent = state.repoName;
       document.getElementById("presetName").textContent = state.suggestion.preset;
@@ -1059,11 +1162,11 @@ def render_ui_html() -> str:
           <tbody>${rows.map(row => `<tr><td>${row.iteration || "-"}</td><td>${row.status || "-"}</td><td>${row.metric || "-"}</td><td>${row.guard || "-"}</td></tr>`).join("")}</tbody>
         </table>
       ` : copy[lang].noResults;
-      renderChart(state.history || []);
+      renderChart(state.history || [], config ? config.direction : "higher");
       renderTimeline(state.timeline || [], state.history || []);
     }
 
-    function renderChart(history) {
+    function renderChart(history, direction) {
       const host = document.getElementById("chartBody");
       if (!history.length) {
         host.innerHTML = `<div class="empty">${copy[lang].noResults}</div>`;
@@ -1073,14 +1176,18 @@ def render_ui_html() -> str:
       const min = Math.min(...values);
       const max = Math.max(...values);
       const span = Math.max(max - min, 1);
+      const best = direction === "lower" ? min : max;
+      const worst = direction === "lower" ? max : min;
       const points = values.map((value, index) => {
         const x = 30 + (index * (520 / Math.max(values.length - 1, 1)));
-        const y = 180 - ((value - min) / span) * 140;
+        const normalized = direction === "lower" ? (worst - value) / span : (value - worst) / span;
+        const y = 180 - normalized * 140;
         return `${x},${y}`;
       }).join(" ");
       const circles = values.map((value, index) => {
         const x = 30 + (index * (520 / Math.max(values.length - 1, 1)));
-        const y = 180 - ((value - min) / span) * 140;
+        const normalized = direction === "lower" ? (worst - value) / span : (value - worst) / span;
+        const y = 180 - normalized * 140;
         return `<circle cx="${x}" cy="${y}" r="5" fill="#d55c3f"></circle>`;
       }).join("");
       host.innerHTML = `
@@ -1090,8 +1197,8 @@ def render_ui_html() -> str:
           <line x1="30" y1="40" x2="30" y2="180" stroke="rgba(30,36,48,0.14)"></line>
           <polyline fill="none" stroke="#18656b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="${points}"></polyline>
           ${circles}
-          <text x="32" y="28" fill="#5f6978" font-size="12">max ${max.toFixed(2)}</text>
-          <text x="32" y="200" fill="#5f6978" font-size="12">min ${min.toFixed(2)}</text>
+          <text x="32" y="28" fill="#5f6978" font-size="12">best ${best.toFixed(2)}</text>
+          <text x="32" y="200" fill="#5f6978" font-size="12">worst ${worst.toFixed(2)}</text>
         </svg>
       `;
     }
@@ -1110,10 +1217,17 @@ def render_ui_html() -> str:
           <strong>${item.name}</strong>
           <div class="small">${item.updatedAt}</div>
           <div class="small">${item.stderr || item.stdout || ""}</div>
+          <div class="small">
+            ${item.stderr ? `<button class="linkish" type="button" data-log="${item.stderr}">stderr</button>` : ""}
+            ${item.stdout ? `<button class="linkish" type="button" data-log="${item.stdout}">stdout</button>` : ""}
+          </div>
         </div>
       `);
       const cards = [...historyCards, ...runCards];
       host.innerHTML = cards.length ? cards.join("") : `<div class="empty">${copy[lang].noTimeline}</div>`;
+      document.querySelectorAll("[data-log]").forEach(node => {
+        node.onclick = () => loadLog(node.dataset.log);
+      });
     }
 
     function renderSelectedTask(tasks) {
@@ -1163,6 +1277,9 @@ def render_ui_html() -> str:
       button.onclick = () => runAction(button.dataset.action);
     });
     document.getElementById("saveConfigBtn").onclick = () => saveConfig();
+    document.getElementById("presetPythonBtn").onclick = () => loadPreset("python");
+    document.getElementById("presetNodeBtn").onclick = () => loadPreset("node");
+    document.getElementById("presetGenericBtn").onclick = () => loadPreset("generic");
     const events = new EventSource("/api/tasks/stream");
     events.onmessage = (event) => {
       try {
@@ -1172,6 +1289,7 @@ def render_ui_html() -> str:
     setLang("en");
     refreshState();
     refreshTasks();
+    document.getElementById("logViewer").textContent = copy[lang].noLog;
     setInterval(refreshState, 3000);
   </script>
 </body>

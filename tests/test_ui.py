@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from codex_autoresearch.ui import build_action_command, collect_dashboard_state, load_results_history, load_results_preview, load_run_timeline, render_config_toml, save_config
+from codex_autoresearch.ui import build_action_command, collect_dashboard_state, load_results_history, load_results_preview, load_run_timeline, preset_payload, read_log_excerpt, render_config_toml, save_config
 
 
 def test_build_action_command_for_start_and_nightly() -> None:
@@ -115,3 +115,16 @@ def test_load_results_history_and_run_timeline(tmp_path: Path) -> None:
     assert len(history) == 2
     assert history[-1]["summary"] == "better"
     assert timeline[-1]["name"] == "iteration-0001"
+
+
+def test_preset_payload_and_read_log_excerpt(tmp_path: Path) -> None:
+    payload = preset_payload("python")
+    assert payload["direction"] == "higher"
+    assert "pytest" in payload["verify"]
+
+    log_path = tmp_path / ".autoresearch" / "runs" / "iteration-0001" / "codex.stderr.log"
+    log_path.parent.mkdir(parents=True)
+    log_path.write_text("a\nb\nc\n")
+    excerpt = read_log_excerpt(tmp_path, ".autoresearch/runs/iteration-0001/codex.stderr.log", lines=2)
+    assert excerpt["exists"] is True
+    assert excerpt["content"] == "b\nc"
