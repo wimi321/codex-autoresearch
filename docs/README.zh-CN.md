@@ -22,7 +22,8 @@ autore start
 
 ```bash
 autore start
-autore start --demo
+autore start --demo --run
+autore quickstart
 autore doctor
 autore run --iterations 5
 autore start --resume
@@ -33,9 +34,13 @@ autore watch --follow
 ## 最快验证
 
 ```bash
-autore start --demo
-cd .autoresearch-demo
-autore start --resume --skip-branch
+autore start --demo --run
+```
+
+## 最省心的入口
+
+```bash
+autore quickstart
 ```
 
 ## 最小可运行 demo

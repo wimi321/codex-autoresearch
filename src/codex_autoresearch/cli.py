@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import builtins
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -23,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     start_parser.add_argument("--branch")
     start_parser.add_argument("--demo", action="store_true")
     start_parser.add_argument("--demo-dir", default=".autoresearch-demo")
+    start_parser.add_argument("--run", action="store_true", help="when used with --demo, run the demo immediately")
 
     init_parser = sub.add_parser("init", help="write a starter autoresearch.toml")
     init_parser.add_argument("--force", action="store_true")
@@ -40,6 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor_parser = sub.add_parser("doctor", help="check whether this repo is ready to run")
     doctor_parser.add_argument("--config", default="autoresearch.toml")
+    doctor_parser.add_argument("--fix", action="store_true")
 
     watch_parser = sub.add_parser("watch", help="watch the latest run logs or results")
     watch_parser.add_argument("--config", default="autoresearch.toml")
@@ -47,6 +51,9 @@ def build_parser() -> argparse.ArgumentParser:
     watch_parser.add_argument("--follow", action="store_true")
     watch_parser.add_argument("--interval", type=float, default=1.0)
     watch_parser.add_argument("--lines", type=int, default=40)
+
+    quickstart_parser = sub.add_parser("quickstart", help="guided first-run setup")
+    quickstart_parser.add_argument("--demo-dir", default=".autoresearch-demo")
 
     return parser
 
@@ -71,9 +78,10 @@ def cmd_start(
     branch: str | None,
     demo: bool,
     demo_dir: str,
+    run_demo: bool,
 ) -> int:
     if demo:
-        return cmd_start_demo(demo_dir)
+        return cmd_start_demo(demo_dir, run_demo=run_demo, iterations=iterations)
 
     config = Path(config_path)
     if not config.exists():
@@ -101,7 +109,7 @@ def cmd_start(
     )
 
 
-def cmd_start_demo(demo_dir: str) -> int:
+def cmd_start_demo(demo_dir: str, *, run_demo: bool, iterations: int) -> int:
     source = Path(__file__).resolve().parents[2] / "examples" / "demo-repo"
     target = Path(demo_dir).resolve()
     if target.exists():
@@ -116,9 +124,24 @@ def cmd_start_demo(demo_dir: str) -> int:
     subprocess.run(["git", "commit", "-m", "init demo"], cwd=target, check=True, text=True, capture_output=True)
 
     print(f"[autore] demo created at {target}")
-    print(f"[autore] next: cd {target}")
-    print("[autore] then run: autore start --resume --skip-branch")
-    return 0
+    if not run_demo:
+        print(f"[autore] next: cd {target}")
+        print("[autore] then run: autore start --resume --skip-branch")
+        return 0
+
+    print(f"[autore] running demo in {target}")
+    previous = Path.cwd()
+    try:
+        os.chdir(target)
+        return cmd_run(
+            "autoresearch.toml",
+            iterations_override=iterations,
+            branch=None,
+            skip_branch=True,
+            resume=True,
+        )
+    finally:
+        os.chdir(previous)
 
 
 def cmd_run(
@@ -167,16 +190,31 @@ def cmd_status(config_path: str) -> int:
     return 0
 
 
-def cmd_doctor(config_path: str) -> int:
+def cmd_doctor(config_path: str, fix: bool = False) -> int:
     issues: list[str] = []
     cwd = Path.cwd()
+    fixed: list[str] = []
 
     if not (cwd / ".git").exists():
-        issues.append("git repo missing: run 'git init'")
+        if fix:
+            subprocess.run(["git", "init", "-b", "main"], cwd=cwd, check=True, text=True, capture_output=True)
+            fixed.append("initialized git repository")
+        else:
+            issues.append("git repo missing: run 'git init'")
     if shutil.which("codex") is None:
         issues.append("Codex CLI missing: install 'codex'")
     if not Path(config_path).exists():
-        issues.append("autoresearch.toml missing: run 'autore init'")
+        if fix:
+            result = cmd_init(force=False, preset="auto")
+            if result == 0:
+                fixed.append(f"created {config_path}")
+        else:
+            issues.append("autoresearch.toml missing: run 'autore init'")
+
+    if fixed:
+        print("Autoresearch doctor applied fixes:")
+        for item in fixed:
+            print(f"- {item}")
 
     if issues:
         print("Autoresearch doctor found issues:")
@@ -211,6 +249,54 @@ def cmd_watch(config_path: str, stream: str, follow: bool, interval: float, line
     return runner.watch_file(path, follow=follow, interval_seconds=interval, lines=lines)
 
 
+def cmd_quickstart(demo_dir: str) -> int:
+    print("Codex Autoresearch quickstart")
+    use_demo = _ask_yes_no("Run the built-in demo first?", default=True)
+    if use_demo:
+        run_now = _ask_yes_no("Run the demo immediately after creating it?", default=True)
+        iterations = _ask_int("How many demo iterations?", default=1)
+        return cmd_start(
+            config_path="autoresearch.toml",
+            preset="auto",
+            iterations=iterations,
+            resume=False,
+            skip_branch=True,
+            branch=None,
+            demo=True,
+            demo_dir=demo_dir,
+            run_demo=run_now,
+        )
+
+    iterations = _ask_int("How many iterations for this repo?", default=5)
+    resume = _ask_yes_no("Resume an existing autoresearch branch?", default=False)
+    return cmd_start(
+        config_path="autoresearch.toml",
+        preset="auto",
+        iterations=iterations,
+        resume=resume,
+        skip_branch=resume,
+        branch=None,
+        demo=False,
+        demo_dir=demo_dir,
+        run_demo=False,
+    )
+
+
+def _ask_yes_no(prompt: str, *, default: bool) -> bool:
+    suffix = "[Y/n]" if default else "[y/N]"
+    answer = builtins.input(f"{prompt} {suffix} ").strip().lower()
+    if not answer:
+        return default
+    return answer in {"y", "yes"}
+
+
+def _ask_int(prompt: str, *, default: int) -> int:
+    answer = builtins.input(f"{prompt} [{default}] ").strip()
+    if not answer:
+        return default
+    return int(answer)
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
@@ -224,6 +310,7 @@ def main() -> int:
             args.branch,
             args.demo,
             args.demo_dir,
+            args.run,
         )
     if args.command == "init":
         return cmd_init(args.force, args.preset)
@@ -232,9 +319,11 @@ def main() -> int:
     if args.command == "status":
         return cmd_status(args.config)
     if args.command == "doctor":
-        return cmd_doctor(args.config)
+        return cmd_doctor(args.config, args.fix)
     if args.command == "watch":
         return cmd_watch(args.config, args.stream, args.follow, args.interval, args.lines)
+    if args.command == "quickstart":
+        return cmd_quickstart(args.demo_dir)
     parser.error("unknown command")
     return 2
 

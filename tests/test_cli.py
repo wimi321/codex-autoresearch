@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_run, cmd_start, cmd_start_demo, cmd_status, cmd_watch
+from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_quickstart, cmd_run, cmd_start, cmd_start_demo, cmd_status, cmd_watch
 
 
 def write_config(tmp_path: Path, *, iterations: int | None = 3) -> Path:
@@ -74,6 +74,18 @@ def test_cmd_doctor_reports_missing_requirements(tmp_path: Path, monkeypatch, ca
     assert "autoresearch.toml missing" in output
 
 
+def test_cmd_doctor_fix_creates_missing_git_and_config(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("codex_autoresearch.cli.shutil.which", lambda _: "/usr/bin/codex")
+
+    assert cmd_doctor("autoresearch.toml", fix=True) == 0
+
+    output = capsys.readouterr().out
+    assert "applied fixes" in output
+    assert (tmp_path / ".git").exists()
+    assert (tmp_path / "autoresearch.toml").exists()
+
+
 def test_cmd_doctor_prints_config_summary_when_ready(tmp_path: Path, monkeypatch, capsys) -> None:
     monkeypatch.chdir(tmp_path)
     write_config(tmp_path)
@@ -123,7 +135,7 @@ def test_cmd_start_creates_missing_config(tmp_path: Path, monkeypatch, capsys) -
     monkeypatch.setattr("codex_autoresearch.cli.shutil.which", lambda _: "/usr/bin/codex")
     monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
 
-    assert cmd_start("autoresearch.toml", "auto", 3, False, True, None, False, ".autoresearch-demo") == 0
+    assert cmd_start("autoresearch.toml", "auto", 3, False, True, None, False, ".autoresearch-demo", False) == 0
 
     output = capsys.readouterr().out
     assert "no config found" in output
@@ -135,13 +147,13 @@ def test_cmd_start_stops_if_doctor_fails(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr("codex_autoresearch.cli.cmd_doctor", lambda config_path: 1)
     monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
 
-    assert cmd_start("autoresearch.toml", "generic", 3, False, True, None, False, ".autoresearch-demo") == 1
+    assert cmd_start("autoresearch.toml", "generic", 3, False, True, None, False, ".autoresearch-demo", False) == 1
 
 
 def test_cmd_start_demo_creates_copyable_repo(tmp_path: Path, monkeypatch, capsys) -> None:
     monkeypatch.chdir(tmp_path)
 
-    assert cmd_start_demo("demo-out") == 0
+    assert cmd_start_demo("demo-out", run_demo=False, iterations=1) == 0
 
     demo = tmp_path / "demo-out"
     assert (demo / "autoresearch.toml").exists()
@@ -149,3 +161,20 @@ def test_cmd_start_demo_creates_copyable_repo(tmp_path: Path, monkeypatch, capsy
     output = capsys.readouterr().out
     assert "demo created at" in output
     assert "autore start --resume --skip-branch" in output
+
+
+def test_cmd_start_demo_can_run_immediately(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("codex_autoresearch.cli.cmd_run", lambda *args, **kwargs: 0)
+
+    assert cmd_start("autoresearch.toml", "auto", 1, False, True, None, True, "demo-run", True) == 0
+    assert (tmp_path / "demo-run" / "autoresearch.toml").exists()
+
+
+def test_cmd_quickstart_uses_demo_path(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    answers = iter(["", "", ""])
+    monkeypatch.setattr("codex_autoresearch.cli.builtins.input", lambda prompt="": next(answers))
+    monkeypatch.setattr("codex_autoresearch.cli.cmd_start", lambda *args, **kwargs: 0)
+
+    assert cmd_quickstart(".autoresearch-demo") == 0

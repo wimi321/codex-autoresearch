@@ -59,9 +59,7 @@ autore start
 ### Fastest proof
 
 ```bash
-autore start --demo
-cd .autoresearch-demo
-autore start --resume --skip-branch
+autore start --demo --run
 ```
 
 ### Resume an existing branch
@@ -107,7 +105,9 @@ iterations = 10
 - `autore init --preset auto`: generate a starter config based on the repo
 - `autore start`: one-command happy path for first-time usage
 - `autore start --demo`: create the smallest runnable demo repo
+- `autore quickstart`: guided interactive entrypoint
 - `autore doctor`: verify `git`, `codex`, and config prerequisites
+- `autore doctor --fix`: auto-repair common setup issues
 - `autore run --iterations N`: run a bounded research loop
 - `autore run --resume --iterations N`: continue an existing research branch
 - `autore status`: print the latest TSV log
@@ -143,6 +143,14 @@ If you want unattended scheduled research, see:
 ## FAQ
 
 See [docs/faq.md](docs/faq.md).
+
+## Guided Start
+
+If you want the least amount of thinking:
+
+```bash
+autore quickstart
+```
 
 ## Repository layout
 
