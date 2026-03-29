@@ -759,27 +759,24 @@ def render_ui_html() -> str:
   <title>Codex Autoresearch UI</title>
   <style>
     :root {
-      --bg: #f4efe6;
-      --panel: rgba(255, 250, 243, 0.82);
-      --panel-strong: rgba(255, 248, 238, 0.96);
-      --ink: #1e2430;
-      --muted: #5f6978;
-      --line: rgba(30, 36, 48, 0.1);
-      --accent: #d55c3f;
-      --accent-2: #18656b;
-      --gold: #c58b2a;
-      --shadow: 0 24px 70px rgba(58, 42, 24, 0.12);
-      --radius: 26px;
+      --bg: #f5f5f7;
+      --panel: rgba(255, 255, 255, 0.94);
+      --panel-strong: rgba(255, 255, 255, 0.98);
+      --ink: #1d1d1f;
+      --muted: #6e6e73;
+      --line: rgba(29, 29, 31, 0.08);
+      --accent: #0071e3;
+      --accent-2: #0071e3;
+      --gold: #8e8e93;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --radius: 24px;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       color: var(--ink);
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
-      background:
-        radial-gradient(circle at top left, rgba(213, 92, 63, 0.16), transparent 28%),
-        radial-gradient(circle at top right, rgba(24, 101, 107, 0.18), transparent 30%),
-        linear-gradient(180deg, #f8f3ea 0%, #f2ecdf 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", sans-serif;
+      background: linear-gradient(180deg, #fbfbfd 0%, #f5f5f7 100%);
       min-height: 100vh;
     }
     .skip-link {
@@ -795,45 +792,22 @@ def render_ui_html() -> str:
     .skip-link:focus {
       top: 12px;
     }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(30,36,48,0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(30,36,48,0.03) 1px, transparent 1px);
-      background-size: 34px 34px;
-      pointer-events: none;
-      mask-image: linear-gradient(180deg, rgba(0,0,0,0.7), transparent);
-    }
     .shell {
-      width: min(1260px, calc(100vw - 32px));
-      margin: 24px auto 48px;
+      width: min(960px, calc(100vw - 32px));
+      margin: 28px auto 56px;
       position: relative;
       z-index: 1;
     }
     .hero, .panel {
       background: var(--panel);
       backdrop-filter: blur(18px);
-      border: 1px solid rgba(255,255,255,0.65);
+      border: 1px solid rgba(255,255,255,0.9);
       box-shadow: var(--shadow);
       border-radius: var(--radius);
     }
     .hero {
-      padding: 28px;
-      overflow: hidden;
-      position: relative;
+      padding: 32px;
       animation: rise 0.55s ease;
-    }
-    .hero::after {
-      content: "";
-      position: absolute;
-      width: 240px;
-      height: 240px;
-      right: -60px;
-      top: -80px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(197,139,42,0.42), rgba(197,139,42,0));
     }
     .eyebrow {
       display: inline-flex;
@@ -841,23 +815,22 @@ def render_ui_html() -> str:
       align-items: center;
       padding: 8px 14px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.65);
+      background: #eef2f7;
       font-size: 12px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      letter-spacing: 0.01em;
       color: var(--accent-2);
     }
     h1, h2 {
-      font-family: "Iowan Old Style", "Palatino Linotype", serif;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
       margin: 0;
-      letter-spacing: -0.03em;
+      letter-spacing: -0.04em;
       text-wrap: balance;
     }
     h1 {
-      font-size: clamp(36px, 6vw, 64px);
-      line-height: 0.95;
-      margin-top: 18px;
-      max-width: 9ch;
+      font-size: clamp(34px, 5vw, 54px);
+      line-height: 1.02;
+      margin-top: 20px;
+      max-width: 12ch;
     }
     .hero-grid, .grid {
       display: grid;
@@ -870,17 +843,17 @@ def render_ui_html() -> str:
     }
     .summary {
       color: var(--muted);
-      font-size: 17px;
-      line-height: 1.6;
-      max-width: 52ch;
+      font-size: 18px;
+      line-height: 1.5;
+      max-width: 40ch;
     }
     .lang-toggle {
       display: inline-flex;
       gap: 8px;
       padding: 6px;
-      background: rgba(255,255,255,0.72);
+      background: #eef2f7;
       border-radius: 999px;
-      border: 1px solid rgba(30,36,48,0.08);
+      border: 1px solid rgba(29,29,31,0.06);
     }
     .top-controls {
       display: flex;
@@ -892,9 +865,9 @@ def render_ui_html() -> str:
       display: inline-flex;
       gap: 8px;
       padding: 6px;
-      background: rgba(255,255,255,0.72);
+      background: #eef2f7;
       border-radius: 999px;
-      border: 1px solid rgba(30,36,48,0.08);
+      border: 1px solid rgba(29,29,31,0.06);
     }
     .lang-toggle button, .action, .ghost {
       border: 0;
@@ -906,11 +879,12 @@ def render_ui_html() -> str:
       border-radius: 999px;
       background: transparent;
       color: var(--muted);
-      font-weight: 700;
+      font-weight: 600;
     }
     .mode-toggle button.active {
-      background: var(--accent-2);
-      color: white;
+      background: white;
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
     button:focus-visible, input:focus-visible {
       outline: 3px solid rgba(24, 101, 107, 0.42);
@@ -921,11 +895,12 @@ def render_ui_html() -> str:
       border-radius: 999px;
       background: transparent;
       color: var(--muted);
-      font-weight: 700;
+      font-weight: 600;
     }
     .lang-toggle button.active {
-      background: var(--ink);
-      color: white;
+      background: white;
+      color: var(--ink);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
     .stats {
       display: grid;
@@ -957,7 +932,7 @@ def render_ui_html() -> str:
       margin-top: 20px;
     }
     .panel {
-      padding: 22px;
+      padding: 24px;
       min-height: 100px;
       animation: rise 0.5s ease both;
     }
@@ -978,14 +953,14 @@ def render_ui_html() -> str:
     }
     .simple-shell {
       display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
+      grid-template-columns: 1fr;
       gap: 18px;
-      align-items: start;
+      align-items: stretch;
     }
     .guide-card {
-      padding: 18px;
-      border-radius: 20px;
-      background: rgba(255,255,255,0.76);
+      padding: 22px;
+      border-radius: 22px;
+      background: rgba(255,255,255,0.96);
       border: 1px solid var(--line);
     }
     .step-list {
@@ -1014,7 +989,7 @@ def render_ui_html() -> str:
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-      margin-top: 14px;
+      margin-top: 16px;
     }
     .chip {
       padding: 8px 12px;
@@ -1030,20 +1005,20 @@ def render_ui_html() -> str:
       gap: 12px;
     }
     .action, .ghost {
-      border-radius: 18px;
-      padding: 14px 16px;
+      border-radius: 999px;
+      padding: 13px 18px;
       font-size: 15px;
-      font-weight: 700;
-      text-align: left;
-      box-shadow: 0 12px 24px rgba(30,36,48,0.08);
+      font-weight: 600;
+      text-align: center;
+      box-shadow: none;
       touch-action: manipulation;
     }
     .action {
-      background: linear-gradient(135deg, var(--ink), #38475f);
+      background: var(--accent);
       color: white;
     }
     .ghost {
-      background: rgba(255,255,255,0.8);
+      background: #f5f5f7;
       color: var(--ink);
       border: 1px solid var(--line);
     }
@@ -1067,17 +1042,16 @@ def render_ui_html() -> str:
       gap: 10px;
     }
     .starter-btn {
-      border: 1px solid rgba(24, 101, 107, 0.16);
+      border: 1px solid rgba(29,29,31,0.08);
       border-radius: 18px;
       padding: 14px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(246, 240, 232, 0.92));
+      background: #f5f5f7;
       color: var(--ink);
       text-align: left;
       display: grid;
       gap: 8px;
       min-height: 124px;
-      box-shadow: 0 10px 26px rgba(30,36,48,0.08);
+      box-shadow: none;
     }
     .starter-btn strong {
       font-size: 14px;
@@ -1145,18 +1119,22 @@ def render_ui_html() -> str:
       align-items: center;
     }
     .goal-box {
-      min-height: 140px;
-      font-size: 16px;
+      min-height: 124px;
+      font-size: 17px;
+      line-height: 1.45;
     }
     .helper-note {
       margin-top: 12px;
       padding: 12px 14px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.7);
+      border-radius: 18px;
+      background: #f5f5f7;
       border: 1px solid var(--line);
       color: var(--muted);
       font-size: 13px;
       line-height: 1.6;
+    }
+    .simple-secondary {
+      display: none;
     }
     .preview-lead {
       margin-top: 10px;
@@ -1173,7 +1151,7 @@ def render_ui_html() -> str:
     .preview-card {
       padding: 14px 16px;
       border-radius: 18px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(246, 240, 232, 0.78));
+      background: #f5f5f7;
       border: 1px solid var(--line);
       min-height: 100%;
     }
@@ -1186,7 +1164,7 @@ def render_ui_html() -> str:
     .plan-card {
       padding: 14px 16px;
       border-radius: 18px;
-      background: rgba(255,255,255,0.8);
+      background: #f5f5f7;
       border: 1px solid var(--line);
       min-height: 100%;
     }
@@ -1214,20 +1192,21 @@ def render_ui_html() -> str:
       display: block;
       padding: 10px 12px;
       border-radius: 14px;
-      background: rgba(24,101,107,0.08);
+      background: rgba(0,113,227,0.08);
       color: var(--ink);
       font-family: "SFMono-Regular", "Menlo", monospace;
       font-size: 13px;
     }
     .progress-stack {
       display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
     .progress-card {
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.78);
+      padding: 16px 18px;
+      border-radius: 20px;
+      background: #f5f5f7;
       border: 1px solid var(--line);
     }
     .status-note {
@@ -1300,11 +1279,11 @@ def render_ui_html() -> str:
       text-transform: uppercase;
     }
     .terminal {
-      background: #181c24;
-      color: #ecf3ff;
-      border-radius: 20px;
+      background: #1c1c1e;
+      color: #f5f5f7;
+      border-radius: 22px;
       padding: 16px;
-      min-height: 280px;
+      min-height: 220px;
       white-space: pre-wrap;
       overflow: auto;
       font-family: "SFMono-Regular", "Menlo", monospace;
@@ -1359,7 +1338,7 @@ def render_ui_html() -> str:
     @media (max-width: 920px) {
       .hero-grid, .grid { grid-template-columns: 1fr; }
       .span-7, .span-5, .span-6, .span-4, .span-8, .span-12 { grid-column: span 1; }
-      .actions, .form-grid, .stats, .config-grid, .guide-grid, .simple-shell, .plan-grid, .preview-grid, .starter-grid { grid-template-columns: 1fr; }
+      .actions, .form-grid, .stats, .config-grid, .guide-grid, .simple-shell, .plan-grid, .preview-grid, .starter-grid, .progress-stack { grid-template-columns: 1fr; }
       h1 { max-width: none; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -1392,7 +1371,7 @@ def render_ui_html() -> str:
           <p class="summary" id="summary">A local control room for setup, nightly workflows, and bounded Codex runs. No YAML hunting. No command memorizing.</p>
           <div class="chips" id="heroChips"></div>
         </div>
-        <div class="stats">
+        <div class="stats advanced-only">
           <div class="stat"><label id="repoLabel">Repository</label><strong id="repoName">-</strong></div>
           <div class="stat"><label id="presetLabel">Preset</label><strong id="presetName">-</strong></div>
           <div class="stat"><label id="configLabel">Config</label><strong id="configStatus">-</strong></div>
@@ -1410,7 +1389,7 @@ def render_ui_html() -> str:
               <span id="simpleGoalLabel">What do you want to make happen?</span>
               <textarea id="simpleGoalInput" class="goal-box" placeholder="Example: Fix the homepage loading bug, make the copy simpler, and improve the signup flow."></textarea>
             </label>
-            <div class="starter-shell" aria-live="polite">
+            <div class="starter-shell simple-secondary" aria-live="polite">
               <div class="small" id="simpleStarterTitle">Try a starter goal</div>
               <div class="starter-grid" id="simpleStarterList"></div>
             </div>
@@ -1425,9 +1404,9 @@ def render_ui_html() -> str:
               <span class="status-note" id="simpleRunStatus"></span>
             </div>
             <div class="small" id="simpleActionHint" aria-live="polite"></div>
-            <div class="helper-note" id="simpleHelper">You do not need to choose Python, Node, or Generic here. The app will guess for you and write the config automatically.</div>
+            <div class="helper-note" id="simpleHelper">Write one clear goal, choose how long to run, then press start.</div>
             <div class="helper-note" id="simpleReadiness" aria-live="polite">Checking local setup...</div>
-            <div class="helper-note" aria-live="polite">
+            <div class="helper-note simple-secondary" aria-live="polite">
               <div class="small" id="simplePreviewTitle">Run preview</div>
               <div class="preview-lead" id="simplePreviewHeadline">Type a goal or tap a starter goal to preview the run.</div>
               <div class="preview-grid">
@@ -1445,7 +1424,7 @@ def render_ui_html() -> str:
                 </div>
               </div>
             </div>
-            <div class="helper-note" aria-live="polite">
+            <div class="helper-note simple-secondary" aria-live="polite">
               <div class="small" id="simpleChecksTitle">What the app checks for you</div>
               <div class="plan-grid">
                 <div class="plan-card">
@@ -1460,11 +1439,11 @@ def render_ui_html() -> str:
                 </div>
               </div>
             </div>
-            <div class="helper-note" aria-live="polite">
+            <div class="helper-note simple-secondary" aria-live="polite">
               <div class="small" id="simpleExplainTitle">Why this plan fits your repo</div>
               <div class="step-list" id="simpleExplainList"></div>
             </div>
-            <div class="helper-note">
+            <div class="helper-note simple-secondary">
               <div class="small" id="simpleFlowTitle">What happens after you press start</div>
               <div class="step-list" id="simpleFlowList">
                 <div class="step-item">
@@ -1481,7 +1460,7 @@ def render_ui_html() -> str:
                 </div>
               </div>
             </div>
-            <div class="helper-note" aria-live="polite">
+            <div class="helper-note simple-secondary" aria-live="polite">
               <div class="small" id="simplePlanTitle">Before you start</div>
               <div class="small" id="simplePlanIntro">Simple mode auto-writes the config, picks the repo preset, and decides whether to run here or in a safe copy.</div>
               <div class="plan-grid">
@@ -1607,16 +1586,16 @@ def render_ui_html() -> str:
     const copy = {
       en: {
         eyebrow: "Codex Autoresearch UI",
-        title: "Write the goal. Press start. Watch it work.",
-        summary: "A local Codex operator for people who do not want to learn commands first. Type the goal, choose rounds or a stop time, then watch live progress.",
+        title: "One goal. One tap. Clear progress.",
+        summary: "Type what you want changed, choose how long to run, and watch the result live.",
         repoLabel: "Repository",
         presetLabel: "Preset",
         configLabel: "Config",
         runLabel: "Latest Run",
         modeBeginnerBtn: "Simple",
         modeAdvancedBtn: "Advanced",
-        simpleTitle: "Tell it what you want, then press start",
-        simpleIntro: "You only need to write the goal, choose how long to let it run, and press start.",
+        simpleTitle: "Say what you want. Then press Start.",
+        simpleIntro: "Keep it simple: one goal, one run setting, one tap.",
         simpleGoalLabel: "What do you want to make happen?",
         simpleStarterTitle: "Try a starter goal",
         simpleIterationsLabel: "Run how many rounds",
@@ -1624,7 +1603,7 @@ def render_ui_html() -> str:
         simpleStartBtn: "Start now",
         simpleStopBtn: "Stop",
         simpleApplyBtn: "Bring back best result",
-        simpleHelper: "You do not need to pick Python, Node, or Generic here. The app guesses for you and writes the config automatically.",
+        simpleHelper: "You do not need to set up the project type first. The app handles that for you.",
         simpleReadinessChecking: "Checking local setup...",
         simpleReadyCurrent: "Ready to start. This run can work directly in the current repo.",
         simpleReadySafe: "Ready to start. Uncommitted changes were found, so the run will use a safe copy and you can bring back the best result later.",
@@ -1773,16 +1752,16 @@ def render_ui_html() -> str:
       },
       zh: {
         eyebrow: "Codex Autoresearch 控制台",
-        title: "只写目标，点开始，然后看它自己跑。",
-        summary: "这是一个给普通人用的本地 Codex 操作台。不用先学命令，只要写下你想做什么，设定轮数或停止时间，就能实时看进度。",
+        title: "一个目标，一键开始，进度清楚可见。",
+        summary: "写下你想完成什么，选运行多久，然后直接看实时进度。",
         repoLabel: "仓库",
         presetLabel: "预设",
         configLabel: "配置",
         runLabel: "最近运行",
         modeBeginnerBtn: "简单模式",
         modeAdvancedBtn: "高级模式",
-        simpleTitle: "只要写你想做什么，然后点开始",
-        simpleIntro: "你只需要写目标、选运行多久，然后点开始。",
+        simpleTitle: "写下目标，然后点开始",
+        simpleIntro: "尽量一句话说清楚目标，剩下的交给系统。",
         simpleGoalLabel: "你想让它做什么？",
         simpleStarterTitle: "可以先点一个示例目标",
         simpleIterationsLabel: "跑多少轮",
@@ -1790,7 +1769,7 @@ def render_ui_html() -> str:
         simpleStartBtn: "立即开始",
         simpleStopBtn: "停止",
         simpleApplyBtn: "带回最佳结果",
-        simpleHelper: "这里不需要你选 Python、Node 或 Generic。应用会自动判断，并自动写入配置。",
+        simpleHelper: "这里不用先选项目类型，应用会自动判断并处理。",
         simpleReadinessChecking: "正在检查本地环境...",
         simpleReadyCurrent: "已经可以开始，这次会直接在当前仓库里运行。",
         simpleReadySafe: "已经可以开始，但检测到未提交改动，所以会先用安全副本运行，之后你可以把最佳结果带回来。",
