@@ -589,6 +589,39 @@ def render_ui_html() -> str:
       font-size: 28px;
       margin-bottom: 14px;
     }
+    .guide-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+    }
+    .guide-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.76);
+      border: 1px solid var(--line);
+    }
+    .step-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .step-item {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .step-num {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+    }
     .chips {
       display: flex;
       gap: 10px;
@@ -810,7 +843,7 @@ def render_ui_html() -> str:
     @media (max-width: 920px) {
       .hero-grid, .grid { grid-template-columns: 1fr; }
       .span-7, .span-5, .span-6, .span-4, .span-8, .span-12 { grid-column: span 1; }
-      .actions, .form-grid, .stats, .config-grid { grid-template-columns: 1fr; }
+      .actions, .form-grid, .stats, .config-grid, .guide-grid { grid-template-columns: 1fr; }
       h1 { max-width: none; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -846,6 +879,29 @@ def render_ui_html() -> str:
       </div>
     </section>
     <section class="grid">
+      <div class="panel span-12">
+        <h2 id="guideTitle">Start here if you are new</h2>
+        <div class="guide-grid">
+          <div class="guide-card">
+            <div class="small" id="guideIntro">You do not need to understand everything. Just follow these three steps.</div>
+            <div class="step-list">
+              <div class="step-item"><span class="step-num">1</span><div><strong id="guideStep1Title">Fill a preset</strong><div class="small" id="guideStep1Body">Pick Python, Node, or Generic in the config editor.</div></div></div>
+              <div class="step-item"><span class="step-num">2</span><div><strong id="guideStep2Title">Save the config</strong><div class="small" id="guideStep2Body">Check goal, metric, and verify command, then save.</div></div></div>
+              <div class="step-item"><span class="step-num">3</span><div><strong id="guideStep3Title">Click the big start button</strong><div class="small" id="guideStep3Body">Use Repair Setup Gaps first if this repo is new.</div></div></div>
+            </div>
+          </div>
+          <div class="guide-card">
+            <div class="small" id="nextActionLabel">Recommended next click</div>
+            <h2 id="nextActionTitle" style="margin-top:8px;">Repair Setup Gaps</h2>
+            <div class="small" id="nextActionBody">This is usually the safest first click in a new repository.</div>
+            <div class="toolbar">
+              <button class="action" id="nextActionBtn" type="button">Do the next step</button>
+            </div>
+            <div class="small" id="glossaryTitle" style="margin-top:12px;"><strong>Simple glossary</strong></div>
+            <div class="small" id="glossaryBody">Metric = the number you want to improve. Verify = the command that prints that number. Guard = a safety check like tests.</div>
+          </div>
+        </div>
+      </div>
       <div class="panel span-7">
         <h2 id="actionsTitle">One-click actions</h2>
         <div class="small" id="actionsCopy">Use the UI for the first 90% of setup, then drop into logs when you want detail.</div>
@@ -931,6 +987,20 @@ def render_ui_html() -> str:
         presetLabel: "Preset",
         configLabel: "Config",
         runLabel: "Latest Run",
+        guideTitle: "Start here if you are new",
+        guideIntro: "You do not need to understand everything. Just follow these three steps.",
+        guideStep1Title: "Fill a preset",
+        guideStep1Body: "Pick Python, Node, or Generic in the config editor.",
+        guideStep2Title: "Save the config",
+        guideStep2Body: "Check goal, metric, and verify command, then save.",
+        guideStep3Title: "Click the big start button",
+        guideStep3Body: "Use Repair Setup Gaps first if this repo is new.",
+        nextActionLabel: "Recommended next click",
+        nextActionTitle: "Repair Setup Gaps",
+        nextActionBody: "This is usually the safest first click in a new repository.",
+        nextActionBtn: "Do the next step",
+        glossaryTitle: "Simple glossary",
+        glossaryBody: "Metric = the number you want to improve. Verify = the command that prints that number. Guard = a safety check like tests.",
         actionsTitle: "One-click actions",
         actionsCopy: "Use the UI for the first 90% of setup, then drop into logs when you want detail.",
         iterationsLabel: "Iterations",
@@ -982,6 +1052,20 @@ def render_ui_html() -> str:
         presetLabel: "预设",
         configLabel: "配置",
         runLabel: "最近运行",
+        guideTitle: "第一次用就从这里开始",
+        guideIntro: "你不需要先全懂。先按下面 3 步点就行。",
+        guideStep1Title: "先填一个预设",
+        guideStep1Body: "在配置编辑器里点 Python、Node 或 Generic 预设。",
+        guideStep2Title: "再保存配置",
+        guideStep2Body: "看看目标、指标、verify 命令，没问题就保存。",
+        guideStep3Title: "最后点开始按钮",
+        guideStep3Body: "如果这是新仓库，先点“修复准备缺项”最稳。",
+        nextActionLabel: "建议你下一步先点",
+        nextActionTitle: "修复准备缺项",
+        nextActionBody: "对一个新仓库来说，这通常是最安全的第一步。",
+        nextActionBtn: "执行下一步",
+        glossaryTitle: "白话解释",
+        glossaryBody: "Metric 就是你想变好的数字。Verify 就是输出这个数字的命令。Guard 就是像测试这样的安全检查。",
         actionsTitle: "一键操作",
         actionsCopy: "前 90% 的常见操作都可以在这里点掉，想看细节时再进日志。",
         iterationsLabel: "迭代次数",
@@ -1042,6 +1126,8 @@ def render_ui_html() -> str:
       }
       const saveButton = document.getElementById("saveConfigBtn");
       if (saveButton) saveButton.textContent = text.saveConfig;
+      const nextButton = document.getElementById("nextActionBtn");
+      if (nextButton) nextButton.textContent = text.nextActionBtn;
       renderSelectedTask(window._tasks || []);
     }
 
@@ -1074,6 +1160,24 @@ def render_ui_html() -> str:
         body: JSON.stringify(buildPayload(action))
       });
       await refreshTasks(true);
+    }
+
+    function computeRecommendedAction(state) {
+      if (!state.configExists) return "doctor_fix";
+      if (!state.gitExists) return "doctor_fix";
+      if (!state.results || !state.results.length) return "start";
+      return "start";
+    }
+
+    function actionLabel(action) {
+      const map = {
+        doctor_fix: copy[lang].btnDoctor,
+        onboard: copy[lang].btnOnboard,
+        nightly: copy[lang].btnNightly,
+        start: copy[lang].btnStart,
+        demo: copy[lang].btnDemo
+      };
+      return map[action] || action;
     }
 
     async function saveConfig() {
@@ -1140,6 +1244,12 @@ def render_ui_html() -> str:
       document.getElementById("useCaseText").textContent = state.suggestion.use_case;
       document.getElementById("metricHint").textContent = state.suggestion.metric_hint;
       document.getElementById("guardHint").textContent = state.suggestion.guard_hint;
+      const nextAction = computeRecommendedAction(state);
+      document.getElementById("nextActionTitle").textContent = actionLabel(nextAction);
+      document.getElementById("nextActionBody").textContent = nextAction === "doctor_fix"
+        ? (lang === "zh" ? "先让工具自动修环境和初始化缺项，然后再继续。" : "Let the tool fix missing setup first, then continue.")
+        : (lang === "zh" ? "环境已经差不多了，现在可以开始第一轮运行。" : "The repo looks ready enough. You can start the first bounded run now.");
+      document.getElementById("nextActionBtn").onclick = () => runAction(nextAction);
       const config = state.config;
       document.getElementById("configBody").innerHTML = config ? `
         <div class="small"><strong>Goal</strong><div>${config.goal}</div></div>
