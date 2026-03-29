@@ -1,28 +1,64 @@
 # Nightly Runs
 
-Codex Autoresearch works best when you can give it a bounded loop and let it run unattended.
+If you want Codex Autoresearch to keep working while you sleep, the shortest path is:
 
-## Local nightly run
+```bash
+autore nightly --force
+```
+
+That writes `.github/workflows/autoresearch-nightly.yml` for you.
+
+## Fast Path
+
+### Generate the workflow
+
+```bash
+autore nightly --force
+```
+
+### Or let onboarding do it too
+
+```bash
+autore onboard --write-nightly
+```
+
+## What the generated workflow does
+
+- runs every day at `01:00 UTC`
+- supports manual `workflow_dispatch`
+- installs the project in a fresh virtualenv
+- runs `autore doctor --fix`
+- optionally runs your guard command before the loop
+- resumes a bounded autoresearch loop
+- uploads results and logs as GitHub Actions artifacts
+
+## Typical repo flow
+
+1. Run `autore onboard --write-nightly`
+2. Commit `autoresearch.toml` and `.github/workflows/autoresearch-nightly.yml`
+3. Make sure your GitHub runner can authenticate `codex`
+4. Trigger the workflow once manually
+5. Review `.autoresearch/results.tsv` artifacts after the run
+
+## Local equivalent
+
+If you want to simulate the same idea locally:
 
 ```bash
 . .venv/bin/activate
-autore run --iterations 10 --resume
+autore doctor --fix
+autore run --resume --iterations 5 --skip-branch
 ```
 
-## GitHub Actions pattern
+## Example workflow
 
-See [examples/nightly.yml](../examples/nightly.yml) for a scheduled workflow template.
+See [examples/nightly.yml](../examples/nightly.yml).
 
-What you need to provide:
+## Before you turn it on
 
-- a machine or runner with Codex CLI available
-- authentication for Codex on that runner
-- a repository-specific `autoresearch.toml`
-- a branch strategy you are comfortable with
+Check these four things:
 
-## Recommended pattern
-
-1. Run on a dedicated branch
-2. Use bounded iterations
-3. Push results to a branch or open a PR
-4. Review kept commits in daylight
+- `codex` is available on the runner
+- the runner can authenticate with Codex
+- your repo already has a valid `autoresearch.toml`
+- your `verify` and `guard` commands are deterministic enough for unattended runs

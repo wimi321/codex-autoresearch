@@ -8,8 +8,12 @@ on:
 jobs:
   autoresearch:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -18,9 +22,24 @@ jobs:
           python -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install -e . pytest
+          pip install -e .
+      - name: Prepare repo
+        run: |
+          . .venv/bin/activate
+          autore doctor --config autoresearch.toml --fix
+      - name: Preflight guard
+        run: |
+          . .venv/bin/activate
+          npm test
       - name: Run bounded autoresearch loop
         run: |
           . .venv/bin/activate
-          autore doctor
-          autore run --resume --iterations 5 --skip-branch
+          autore run --config autoresearch.toml --resume --iterations 5 --skip-branch
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autoresearch-results
+          path: |
+            .autoresearch/results.tsv
+            .autoresearch/runs/

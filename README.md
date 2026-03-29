@@ -6,97 +6,140 @@
 
 English | [简体中文](docs/README.zh-CN.md)
 
-Codex Autoresearch is a Codex-native implementation of the Karpathy loop: one metric, one focused change, one verification step, repeated until the repository gets better.
+Codex Autoresearch is the easiest way to turn the Karpathy autoresearch loop into a real Codex workflow on your own repo.
 
-It takes the core ideas from [karpathy/autoresearch](https://github.com/karpathy/autoresearch) and the product framing from [uditgoenka/autoresearch](https://github.com/uditgoenka/autoresearch), then rebuilds them for OpenAI Codex as a real executable runner.
+Instead of giving you a pile of prompts, it gives you a runner:
 
-## At a Glance
+- one goal
+- one measurable metric
+- one Codex change at a time
+- one verify step after every change
+- one keep-or-revert decision logged to disk
 
-- One command setup: `autore start`
-- Real runner, not just prompts
-- Works with `codex exec`
-- Supports `watch`, `resume`, and bounded loops
-- English + Simplified Chinese docs
-- Copyable [demo repo](examples/demo-repo/README.md)
+## Start Here
 
-## Copy This
-
-New here:
+If you want proof in under a minute:
 
 ```bash
 autore start --demo --run
 ```
 
-Using it on a real repo:
+If you want to use it on your own repo:
 
 ```bash
 autore start
 ```
 
-`autore start` auto-fixes the obvious setup gaps first.
-
-Want the tool to guide you:
+If you want the tool to prepare the repo and tell you exactly what to do next:
 
 ```bash
-autore quickstart
+autore onboard --write-nightly
 ```
 
-## Flow
+## What Happens When I Run `autore start`?
 
-```mermaid
-flowchart LR
-    A[Goal + Metric] --> B[Baseline]
-    B --> C[Codex Iteration]
-    C --> D[Verify + Guard]
-    D --> E{Keep?}
-    E -- Yes --> F[Commit stays]
-    E -- No --> G[Revert]
-    F --> H[results.tsv]
-    G --> H
-```
+`autore start` is the default happy path.
 
-## One command setup
+It will:
 
-```bash
-autore start
-```
-
-If the repo does not have `autoresearch.toml` yet, `autore start` will:
-
-1. auto-detect a preset
-2. create `autoresearch.toml`
+1. detect whether your repo looks like Python, Node, or generic
+2. create `autoresearch.toml` if it does not exist yet
 3. run `autore doctor --fix`
-4. run a bounded research loop
+4. establish a baseline metric
+5. run a bounded Codex loop
+6. keep improvements and revert non-improvements
 
-During long runs, live execution logs are written under `.autoresearch/runs/iteration-XXXX/`.
+During long runs, logs are written to `.autoresearch/runs/iteration-XXXX/`.
 
-## Quick start
+## What Problem Does This Solve?
 
-### Fast path
+This project is for the moment when you want Codex to improve a repository mechanically instead of vaguely.
 
-```bash
-autore start
-```
+Examples:
 
-### Fastest proof
+- increase pytest coverage
+- reduce bundle size
+- expand collected tests
+- improve a build output metric
+- keep trying small changes until a measurable number gets better
+
+## Commands Most People Actually Need
+
+### 1. Fastest proof
 
 ```bash
 autore start --demo --run
 ```
 
-### Resume an existing branch
+### 2. First run on a real repo
+
+```bash
+autore start
+```
+
+### 3. Prepare the repo and get a next-step checklist
+
+```bash
+autore onboard
+```
+
+### 4. Create a nightly GitHub Actions workflow
+
+```bash
+autore nightly --force
+```
+
+### 5. Watch a long run
+
+```bash
+autore watch --follow
+autore watch --stream stdout --follow
+autore watch --stream results
+```
+
+### 6. Resume where you left off
 
 ```bash
 autore start --resume
+autore run --resume --iterations 5
 ```
 
-### Smallest demo
+## Typical First-Time Flow
 
-Want the smallest possible proof that the loop works?
+```mermaid
+flowchart LR
+    A["Run autore start"] --> B["Auto-create config if missing"]
+    B --> C["Doctor fixes obvious setup gaps"]
+    C --> D["Baseline metric"]
+    D --> E["Codex makes one change"]
+    E --> F["Verify + Guard"]
+    F --> G{"Metric improved?"}
+    G -- "Yes" --> H["Keep commit"]
+    G -- "No" --> I["Revert commit"]
+    H --> J["Write results.tsv"]
+    I --> J
+```
 
-See [examples/demo-repo](examples/demo-repo/README.md).
+## The New Easiest Path: `autore onboard`
 
-### Python repo example
+If you do not want to think about setup details, use:
+
+```bash
+autore onboard --write-nightly
+```
+
+It will:
+
+- run doctor with auto-fix enabled
+- make sure `.autoresearch/` is ignored
+- infer a sensible preset
+- explain the best use case for this repo
+- print the exact next commands to copy
+- optionally generate `.github/workflows/autoresearch-nightly.yml`
+
+## Example Configs
+
+### Python repo
 
 ```toml
 [research]
@@ -109,7 +152,7 @@ guard = "pytest"
 iterations = 10
 ```
 
-### Node repo example
+### Node repo
 
 ```toml
 [research]
@@ -122,108 +165,59 @@ guard = "npm test"
 iterations = 10
 ```
 
-## Commands
+## Nightly Runs Without Writing YAML by Hand
 
-- `autore init --preset auto`: generate a starter config based on the repo
-- `autore start`: one-command happy path for first-time usage
-- `autore start --demo`: create the smallest runnable demo repo
-- `autore quickstart`: guided interactive entrypoint
-- `autore doctor`: verify `git`, `codex`, and config prerequisites
-- `autore doctor --fix`: auto-repair common setup issues
-- `autore run --iterations N`: run a bounded research loop
-- `autore run --resume --iterations N`: continue an existing research branch
-- `autore status`: print the latest TSV log
-- `autore watch --follow`: watch the newest iteration log in real time
-- `make setup`: bootstrap the whole project locally
-
-## Long Runs
-
-When an iteration takes a while, you can inspect its files directly:
+Generate the workflow:
 
 ```bash
-autore watch --follow
-autore watch --stream stdout --follow
-autore watch --stream results
+autore nightly --force
 ```
 
-Timeouts are configurable in `autoresearch.toml`:
+Or let onboarding do it for you:
 
-```toml
-[runtime]
-codex_timeout_seconds = 1800
-verify_timeout_seconds = 300
-guard_timeout_seconds = 300
+```bash
+autore onboard --write-nightly
 ```
 
-## Nightly Runs
+The generated GitHub Actions workflow:
 
-If you want unattended scheduled research, see:
+- runs every day at `01:00 UTC`
+- prepares the repo with `autore doctor --fix`
+- runs a bounded resume loop
+- uploads `.autoresearch/results.tsv` and run logs as artifacts
 
+See [docs/nightly.md](docs/nightly.md) and [examples/nightly.yml](examples/nightly.yml).
+
+## What You Get Back
+
+- `autoresearch.toml`: repo-specific loop config
+- `.autoresearch/results.tsv`: iteration-by-iteration ledger
+- `.autoresearch/runs/...`: stdout/stderr logs for each Codex run
+- automatic keep/discard behavior based on your metric
+- optional guard command to block regressions
+
+## Why This Feels Simpler Than Other Autoresearch Projects
+
+Most autoresearch repos stop at prompts.
+
+This one gives you a runnable outer loop for Codex:
+
+- `autore start` for the shortest happy path
+- `autore onboard` for first-time repo setup
+- `autore nightly` for scheduled GitHub runs
+- `autore watch` for long-task visibility
+- `autore run --resume` for continuing an existing branch
+
+## Files You May Want
+
+- [src/codex_autoresearch/cli.py](src/codex_autoresearch/cli.py)
+- [src/codex_autoresearch/runner.py](src/codex_autoresearch/runner.py)
 - [docs/nightly.md](docs/nightly.md)
+- [docs/architecture.md](docs/architecture.md)
+- [docs/faq.md](docs/faq.md)
+- [examples/demo-repo/README.md](examples/demo-repo/README.md)
 - [examples/nightly.yml](examples/nightly.yml)
-
-## FAQ
-
-See [docs/faq.md](docs/faq.md).
-
-## Guided Start
-
-If you want the least amount of thinking:
-
-```bash
-autore quickstart
-```
-
-If you want the tool to repair the obvious setup gaps first:
-
-```bash
-autore doctor --fix
-```
-
-## Repository layout
-
-- `src/codex_autoresearch/cli.py`: CLI entrypoint
-- `src/codex_autoresearch/runner.py`: outer loop orchestration
-- `src/codex_autoresearch/prompting.py`: Codex iteration prompt builder
-- `src/codex_autoresearch/gittools.py`: git safety and rollback helpers
-- `docs/architecture.md`: design notes and roadmap
-- `docs/faq.md`: common questions
-- `docs/nightly.md`: scheduled run guidance
-- `examples/autoresearch.toml`: sample config
-- `examples/demo-repo/`: copyable end-to-end demo
-- `examples/nightly.yml`: scheduled workflow template
-
-## Why this project
-
-Most "autoresearch" adaptations stop at prompt files. Codex can do more.
-
-This project treats Codex as the autonomous worker inside a strict outer loop:
-
-- Git is memory.
-- The verify command is truth.
-- Guard commands prevent regressions.
-- One iteration means one reversible change.
-- Results are logged to `.autoresearch/results.tsv`.
-
-## Why it feels simple
-
-- `autore init --preset auto` picks a sane starter config
-- `autore start` collapses setup and the first run into one command
-- `autore doctor` tells you if the repo is actually runnable
-- `autore run` establishes a baseline and runs bounded Codex iterations
-- `autore run --resume` continues where you left off
-- `autore status` prints the research log
-- Automatic branch creation for isolated runs
-- Keep/discard logic based on mechanical metrics
-- Optional guard command support
-- Per-iteration log files for long-running Codex sessions
-- TSV logging for every iteration
-
-## Release Notes
-
-Current target release: `0.2.0`
-
-See [CHANGELOG.md](CHANGELOG.md).
+- [CHANGELOG.md](CHANGELOG.md)
 
 ## Inspiration
 

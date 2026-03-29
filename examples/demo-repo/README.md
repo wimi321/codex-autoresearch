@@ -1,18 +1,28 @@
 # Demo Repo
 
-This is the smallest reproducible Codex Autoresearch demo.
+This is the fastest way to prove that Codex Autoresearch actually works end to end.
 
-## What it does
+## What You Should Expect
 
 - `score.txt` starts at `10`
-- the metric is the numeric value in that file
+- the metric is the number inside `score.txt`
 - lower is better
-- Codex is allowed to edit only `score.txt`
-- one iteration should reduce the score toward `0`
+- Codex is only allowed to touch `score.txt`
+- one successful iteration should drive the value toward `0`
 
-## Run it
+## Fastest Path
 
 From the project root:
+
+```bash
+autore start --demo --run
+```
+
+That creates a fresh demo repo, runs one bounded loop, and prints a short summary.
+
+## Manual Path
+
+If you want to see each step yourself:
 
 ```bash
 rm -rf /tmp/codex-autoresearch-demo
@@ -26,11 +36,11 @@ git add .
 git commit -m "init demo"
 
 . /absolute/path/to/codex-autoresearch/.venv/bin/activate
-autore doctor
-autore run --iterations 1
+autore doctor --fix
+autore run --iterations 1 --skip-branch
 ```
 
-Expected result:
+## Expected Result
 
 - baseline metric: `10`
 - best metric after one iteration: `0`

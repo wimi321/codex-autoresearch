@@ -56,6 +56,21 @@ def build_parser() -> argparse.ArgumentParser:
     quickstart_parser = sub.add_parser("quickstart", help="guided first-run setup")
     quickstart_parser.add_argument("--demo-dir", default=".autoresearch-demo")
 
+    onboard_parser = sub.add_parser("onboard", help="repo-first setup guide with optional file generation")
+    onboard_parser.add_argument("--config", default="autoresearch.toml")
+    onboard_parser.add_argument("--write-nightly", action="store_true")
+    onboard_parser.add_argument("--workflow-path", default=".github/workflows/autoresearch-nightly.yml")
+    onboard_parser.add_argument("--iterations", type=int, default=5)
+    onboard_parser.add_argument("--force", action="store_true")
+
+    nightly_parser = sub.add_parser("nightly", help="generate a GitHub Actions workflow for scheduled runs")
+    nightly_parser.add_argument("--config", default="autoresearch.toml")
+    nightly_parser.add_argument("--workflow-path", default=".github/workflows/autoresearch-nightly.yml")
+    nightly_parser.add_argument("--iterations", type=int, default=5)
+    nightly_parser.add_argument("--python-version", default="3.11")
+    nightly_parser.add_argument("--branch", default="main")
+    nightly_parser.add_argument("--force", action="store_true")
+
     return parser
 
 
@@ -299,6 +314,72 @@ def cmd_quickstart(demo_dir: str) -> int:
     )
 
 
+def cmd_onboard(
+    config_path: str,
+    workflow_path: str,
+    iterations: int,
+    write_nightly: bool,
+    force: bool,
+) -> int:
+    print("Codex Autoresearch onboarding")
+    doctor_result = cmd_doctor(config_path, fix=True)
+    if doctor_result != 0:
+        return doctor_result
+
+    config = ResearchConfig.load(config_path)
+    suggestion = suggest_repo_defaults(Path.cwd(), config=config)
+    print("")
+    print("This repo is ready.")
+    print(f"- detected preset: {suggestion['preset']}")
+    print(f"- best fit: {suggestion['use_case']}")
+    print(f"- metric hint: {suggestion['metric_hint']}")
+    print(f"- guard hint: {suggestion['guard_hint']}")
+    print(f"- recommended run: autore start --iterations {iterations}")
+
+    if write_nightly:
+        nightly_result = cmd_nightly(
+            config_path=config_path,
+            workflow_path=workflow_path,
+            iterations=iterations,
+            python_version="3.11",
+            branch="main",
+            force=force,
+        )
+        if nightly_result != 0:
+            return nightly_result
+
+    print("")
+    print("Copy next:")
+    print(f"1. autore start --iterations {iterations}")
+    print("2. autore watch --follow")
+    if write_nightly:
+        print(f"3. git add {workflow_path} && git commit -m \"chore: add autoresearch nightly workflow\"")
+    return 0
+
+
+def cmd_nightly(
+    config_path: str,
+    workflow_path: str,
+    iterations: int,
+    python_version: str,
+    branch: str,
+    force: bool,
+) -> int:
+    config = ResearchConfig.load(config_path)
+    target = Path(workflow_path)
+    if target.exists() and not force:
+        print(f"Workflow already exists: {target}. Use --force to overwrite.", file=sys.stderr)
+        return 1
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_nightly_workflow(config_path, config, iterations, python_version, branch))
+    print(f"Wrote nightly workflow: {target}")
+    print("- schedule: every day at 01:00 UTC")
+    print(f"- iterations per run: {iterations}")
+    print("- artifact upload: enabled")
+    print("- next: git add .github/workflows && git commit")
+    return 0
+
+
 def _ask_yes_no(prompt: str, *, default: bool) -> bool:
     suffix = "[Y/n]" if default else "[y/N]"
     answer = builtins.input(f"{prompt} {suffix} ").strip().lower()
@@ -360,6 +441,68 @@ def _infer_preset_from_config(config: ResearchConfig) -> str:
     return "generic"
 
 
+def render_nightly_workflow(
+    config_path: str,
+    config: ResearchConfig,
+    iterations: int,
+    python_version: str,
+    branch: str,
+) -> str:
+    lines = [
+        "name: autoresearch-nightly",
+        "",
+        "on:",
+        "  workflow_dispatch:",
+        "  schedule:",
+        "    - cron: '0 1 * * *'",
+        "",
+        "jobs:",
+        "  autoresearch:",
+        "    runs-on: ubuntu-latest",
+        "    permissions:",
+        "      contents: read",
+        "    steps:",
+        "      - uses: actions/checkout@v4",
+        "        with:",
+        f"          ref: {branch}",
+        "      - uses: actions/setup-python@v5",
+        "        with:",
+        f"          python-version: '{python_version}'",
+        "      - name: Install Codex Autoresearch",
+        "        run: |",
+        "          python -m venv .venv",
+        "          . .venv/bin/activate",
+        "          python -m pip install --upgrade pip",
+        "          pip install -e .",
+        "      - name: Prepare repo",
+        "        run: |",
+        "          . .venv/bin/activate",
+        f"          autore doctor --config {config_path} --fix",
+    ]
+    if config.guard:
+        lines.extend([
+            "      - name: Preflight guard",
+            "        run: |",
+            "          . .venv/bin/activate",
+            f"          {config.guard}",
+        ])
+    lines.extend([
+        "      - name: Run bounded autoresearch loop",
+        "        run: |",
+        "          . .venv/bin/activate",
+        f"          autore run --config {config_path} --resume --iterations {iterations} --skip-branch",
+        "      - name: Upload logs",
+        "        if: always()",
+        "        uses: actions/upload-artifact@v4",
+        "        with:",
+        "          name: autoresearch-results",
+        "          path: |",
+        f"            {config.log_tsv}",
+        f"            {config.scratch_dir}/runs/",
+    ])
+    return "\n".join(lines) + "\n"
+
+
 def _print_demo_summary(target: Path) -> None:
     score_path = target / "score.txt"
     results_path = target / ".autoresearch" / "results.tsv"
@@ -400,6 +543,10 @@ def main() -> int:
         return cmd_watch(args.config, args.stream, args.follow, args.interval, args.lines)
     if args.command == "quickstart":
         return cmd_quickstart(args.demo_dir)
+    if args.command == "onboard":
+        return cmd_onboard(args.config, args.workflow_path, args.iterations, args.write_nightly, args.force)
+    if args.command == "nightly":
+        return cmd_nightly(args.config, args.workflow_path, args.iterations, args.python_version, args.branch, args.force)
     parser.error("unknown command")
     return 2
 

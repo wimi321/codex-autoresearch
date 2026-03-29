@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_quickstart, cmd_run, cmd_start, cmd_start_demo, cmd_status, cmd_watch, suggest_repo_defaults
+from codex_autoresearch.cli import cmd_doctor, cmd_init, cmd_nightly, cmd_onboard, cmd_quickstart, cmd_run, cmd_start, cmd_start_demo, cmd_status, cmd_watch, render_nightly_workflow, suggest_repo_defaults
 from codex_autoresearch.config import ResearchConfig
 
 
@@ -224,3 +224,44 @@ def test_suggest_repo_defaults_from_config_when_repo_shape_is_generic(tmp_path: 
     config_path = write_config(tmp_path)
     suggestion = suggest_repo_defaults(tmp_path, config=ResearchConfig.load(config_path))
     assert suggestion["preset"] == "python"
+
+
+def test_render_nightly_workflow_includes_guard_and_artifacts(tmp_path: Path) -> None:
+    config_path = write_config(tmp_path)
+    config = ResearchConfig.load(config_path)
+
+    workflow = render_nightly_workflow("autoresearch.toml", config, 7, "3.12", "main")
+
+    assert "name: autoresearch-nightly" in workflow
+    assert "python-version: '3.12'" in workflow
+    assert "autore doctor --config autoresearch.toml --fix" in workflow
+    assert "autore run --config autoresearch.toml --resume --iterations 7 --skip-branch" in workflow
+    assert "Preflight guard" in workflow
+    assert ".autoresearch/results.tsv" in workflow
+
+
+def test_cmd_nightly_writes_workflow_file(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    write_config(tmp_path)
+
+    assert cmd_nightly("autoresearch.toml", ".github/workflows/autoresearch-nightly.yml", 5, "3.11", "main", False) == 0
+
+    workflow = (tmp_path / ".github" / "workflows" / "autoresearch-nightly.yml").read_text()
+    assert "autoresearch-nightly" in workflow
+    assert "upload-artifact@v4" in workflow
+    assert "Wrote nightly workflow" in capsys.readouterr().out
+
+
+def test_cmd_onboard_can_prepare_repo_and_write_nightly(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "tests").mkdir()
+    monkeypatch.setattr("codex_autoresearch.cli.shutil.which", lambda _: "/usr/bin/codex")
+
+    assert cmd_onboard("autoresearch.toml", ".github/workflows/autoresearch-nightly.yml", 4, True, False) == 0
+
+    output = capsys.readouterr().out
+    assert "This repo is ready." in output
+    assert "Copy next:" in output
+    assert (tmp_path / "autoresearch.toml").exists()
+    assert (tmp_path / ".gitignore").exists()
+    assert (tmp_path / ".github" / "workflows" / "autoresearch-nightly.yml").exists()
