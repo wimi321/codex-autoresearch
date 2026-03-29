@@ -525,10 +525,35 @@ def render_ui_html() -> str:
       border-radius: 999px;
       border: 1px solid rgba(30,36,48,0.08);
     }
+    .top-controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .mode-toggle {
+      display: inline-flex;
+      gap: 8px;
+      padding: 6px;
+      background: rgba(255,255,255,0.72);
+      border-radius: 999px;
+      border: 1px solid rgba(30,36,48,0.08);
+    }
     .lang-toggle button, .action, .ghost {
       border: 0;
       cursor: pointer;
       transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+    .mode-toggle button {
+      padding: 9px 14px;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .mode-toggle button.active {
+      background: var(--accent-2);
+      color: white;
     }
     button:focus-visible, input:focus-visible {
       outline: 3px solid rgba(24, 101, 107, 0.42);
@@ -836,6 +861,9 @@ def render_ui_html() -> str:
       color: var(--muted);
       line-height: 1.6;
     }
+    .hidden-by-mode {
+      display: none !important;
+    }
     @keyframes rise {
       from { opacity: 0; transform: translateY(12px); }
       to { opacity: 1; transform: translateY(0); }
@@ -862,9 +890,15 @@ def render_ui_html() -> str:
       <div class="eyebrow" id="eyebrow">Codex Autoresearch UI</div>
       <div class="hero-grid">
         <div>
-          <div class="lang-toggle" aria-label="Language switch">
-            <button class="active" data-lang="en">EN</button>
-            <button data-lang="zh">中文</button>
+          <div class="top-controls">
+            <div class="lang-toggle" aria-label="Language switch">
+              <button class="active" data-lang="en">EN</button>
+              <button data-lang="zh">中文</button>
+            </div>
+            <div class="mode-toggle" aria-label="Mode switch">
+              <button class="active" data-mode="beginner" id="modeBeginnerBtn">Simple</button>
+              <button data-mode="advanced" id="modeAdvancedBtn">Advanced</button>
+            </div>
           </div>
           <h1 id="title">Run your repo like a measured Codex lab.</h1>
           <p class="summary" id="summary">A local control room for setup, nightly workflows, and bounded Codex runs. No YAML hunting. No command memorizing.</p>
@@ -917,14 +951,14 @@ def render_ui_html() -> str:
           <button class="ghost" data-action="demo" id="btnDemo">Run built-in demo</button>
         </div>
       </div>
-      <div class="panel span-5">
+      <div class="panel span-5 advanced-only">
         <h2 id="healthTitle">Repository health</h2>
         <div class="chips" id="healthChips"></div>
         <p class="small" id="useCaseText"></p>
         <div class="small"><strong id="metricHintLabel">Metric hint</strong><div id="metricHint">-</div></div>
         <div class="small" style="margin-top:12px;"><strong id="guardHintLabel">Guard hint</strong><div id="guardHint">-</div></div>
       </div>
-      <div class="panel span-6">
+      <div class="panel span-6 advanced-only">
         <h2 id="configTitle">Research config</h2>
         <div id="configBody" class="small">No config loaded yet.</div>
       </div>
@@ -932,9 +966,9 @@ def render_ui_html() -> str:
         <h2 id="editorTitle">Config editor</h2>
         <div class="config-grid">
           <div class="preset-row wide">
-            <button class="ghost" id="presetPythonBtn" type="button">Use Python preset</button>
-            <button class="ghost" id="presetNodeBtn" type="button">Use Node preset</button>
-            <button class="ghost" id="presetGenericBtn" type="button">Use Generic preset</button>
+            <button class="ghost" id="presetPythonBtn" type="button">My repo is Python</button>
+            <button class="ghost" id="presetNodeBtn" type="button">My repo is Node</button>
+            <button class="ghost" id="presetGenericBtn" type="button">I am not sure</button>
           </div>
           <label class="field"><span id="fieldGoal">Goal</span><textarea id="goalInput" class="wide"></textarea></label>
           <label class="field"><span id="fieldMetric">Metric</span><input id="metricInput" type="text" autocomplete="off"></label>
@@ -950,27 +984,27 @@ def render_ui_html() -> str:
           <span class="status-note" id="saveStatus"></span>
         </div>
       </div>
-      <div class="panel span-6">
+      <div class="panel span-6 advanced-only">
         <h2 id="resultsTitle">Recent results</h2>
         <div id="resultsBody" class="small">No results yet.</div>
       </div>
-      <div class="panel span-6">
+      <div class="panel span-6 advanced-only">
         <h2 id="chartTitle">Metric chart</h2>
         <div id="chartBody" class="chart-shell"></div>
       </div>
-      <div class="panel span-4">
+      <div class="panel span-4 advanced-only">
         <h2 id="tasksTitle">Task queue</h2>
         <div class="task-list" id="taskList"></div>
       </div>
-      <div class="panel span-8">
+      <div class="panel span-8 advanced-only">
         <h2 id="outputTitle">Task output</h2>
         <div class="terminal" id="terminal" aria-live="polite">No task selected yet.</div>
       </div>
-      <div class="panel span-12">
+      <div class="panel span-12 advanced-only">
         <h2 id="timelineTitle">Run timeline</h2>
         <div id="timelineBody" class="timeline"></div>
       </div>
-      <div class="panel span-12">
+      <div class="panel span-12 advanced-only">
         <h2 id="logTitle">Run log viewer</h2>
         <div class="small" id="logMeta">Pick a run log from the timeline.</div>
         <div class="terminal" id="logViewer">No log selected yet.</div>
@@ -987,14 +1021,16 @@ def render_ui_html() -> str:
         presetLabel: "Preset",
         configLabel: "Config",
         runLabel: "Latest Run",
+        modeBeginnerBtn: "Simple",
+        modeAdvancedBtn: "Advanced",
         guideTitle: "Start here if you are new",
-        guideIntro: "You do not need to understand everything. Just follow these three steps.",
-        guideStep1Title: "Fill a preset",
-        guideStep1Body: "Pick Python, Node, or Generic in the config editor.",
-        guideStep2Title: "Save the config",
-        guideStep2Body: "Check goal, metric, and verify command, then save.",
-        guideStep3Title: "Click the big start button",
-        guideStep3Body: "Use Repair Setup Gaps first if this repo is new.",
+        guideIntro: "You only need to do three things: choose a project type, save, and click start.",
+        guideStep1Title: "Choose what kind of repo this is",
+        guideStep1Body: "Most people should click Python or Node. If you are not sure, click I am not sure.",
+        guideStep2Title: "Save",
+        guideStep2Body: "You usually do not need to edit anything before the first save.",
+        guideStep3Title: "Click the recommended button",
+        guideStep3Body: "The page will tell you the safest next click.",
         nextActionLabel: "Recommended next click",
         nextActionTitle: "Repair Setup Gaps",
         nextActionBody: "This is usually the safest first click in a new repository.",
@@ -1016,9 +1052,9 @@ def render_ui_html() -> str:
         configTitle: "Research config",
         editorTitle: "Config editor",
         fieldGoal: "Goal",
-        presetPythonBtn: "Use Python preset",
-        presetNodeBtn: "Use Node preset",
-        presetGenericBtn: "Use Generic preset",
+        presetPythonBtn: "My repo is Python",
+        presetNodeBtn: "My repo is Node",
+        presetGenericBtn: "I am not sure",
         fieldMetric: "Metric",
         fieldDirection: "Direction",
         fieldVerify: "Verify command",
@@ -1052,14 +1088,16 @@ def render_ui_html() -> str:
         presetLabel: "预设",
         configLabel: "配置",
         runLabel: "最近运行",
+        modeBeginnerBtn: "简单模式",
+        modeAdvancedBtn: "高级模式",
         guideTitle: "第一次用就从这里开始",
-        guideIntro: "你不需要先全懂。先按下面 3 步点就行。",
-        guideStep1Title: "先填一个预设",
-        guideStep1Body: "在配置编辑器里点 Python、Node 或 Generic 预设。",
-        guideStep2Title: "再保存配置",
-        guideStep2Body: "看看目标、指标、verify 命令，没问题就保存。",
-        guideStep3Title: "最后点开始按钮",
-        guideStep3Body: "如果这是新仓库，先点“修复准备缺项”最稳。",
+        guideIntro: "你只需要做三件事：选项目类型、保存、再点开始。",
+        guideStep1Title: "先选你的项目类型",
+        guideStep1Body: "大多数人点 Python 或 Node 就行。拿不准就点“我也不确定”。",
+        guideStep2Title: "先保存",
+        guideStep2Body: "第一次通常不用改太多，先保存就可以。",
+        guideStep3Title: "再点页面推荐按钮",
+        guideStep3Body: "页面会告诉你当前最安全的下一步。",
         nextActionLabel: "建议你下一步先点",
         nextActionTitle: "修复准备缺项",
         nextActionBody: "对一个新仓库来说，这通常是最安全的第一步。",
@@ -1081,9 +1119,9 @@ def render_ui_html() -> str:
         configTitle: "研究配置",
         editorTitle: "配置编辑器",
         fieldGoal: "目标",
-        presetPythonBtn: "填入 Python 预设",
-        presetNodeBtn: "填入 Node 预设",
-        presetGenericBtn: "填入 Generic 预设",
+        presetPythonBtn: "我的项目是 Python",
+        presetNodeBtn: "我的项目是 Node",
+        presetGenericBtn: "我也不确定",
         fieldMetric: "指标",
         fieldDirection: "方向",
         fieldVerify: "Verify 命令",
@@ -1111,8 +1149,19 @@ def render_ui_html() -> str:
       }
     };
     let lang = "en";
+    let mode = "beginner";
     let selectedTaskId = null;
     let selectedLogPath = "";
+
+    function setMode(next) {
+      mode = next;
+      document.querySelectorAll("[data-mode]").forEach(button => {
+        button.classList.toggle("active", button.dataset.mode === next);
+      });
+      document.querySelectorAll(".advanced-only").forEach(node => {
+        node.classList.toggle("hidden-by-mode", next === "beginner");
+      });
+    }
 
     function setLang(next) {
       lang = next;
@@ -1128,6 +1177,10 @@ def render_ui_html() -> str:
       if (saveButton) saveButton.textContent = text.saveConfig;
       const nextButton = document.getElementById("nextActionBtn");
       if (nextButton) nextButton.textContent = text.nextActionBtn;
+      document.querySelectorAll("[data-mode]").forEach(button => {
+        const key = button.id;
+        if (text[key]) button.textContent = text[key];
+      });
       renderSelectedTask(window._tasks || []);
     }
 
@@ -1383,6 +1436,9 @@ def render_ui_html() -> str:
     document.querySelectorAll("[data-lang]").forEach(button => {
       button.onclick = () => setLang(button.dataset.lang);
     });
+    document.querySelectorAll("[data-mode]").forEach(button => {
+      button.onclick = () => setMode(button.dataset.mode);
+    });
     document.querySelectorAll("[data-action]").forEach(button => {
       button.onclick = () => runAction(button.dataset.action);
     });
@@ -1397,6 +1453,7 @@ def render_ui_html() -> str:
       } catch (error) {}
     };
     setLang("en");
+    setMode("beginner");
     refreshState();
     refreshTasks();
     document.getElementById("logViewer").textContent = copy[lang].noLog;
