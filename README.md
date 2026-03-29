@@ -19,6 +19,28 @@ It takes the core ideas from [karpathy/autoresearch](https://github.com/karpathy
 - English + Simplified Chinese docs
 - Copyable [demo repo](examples/demo-repo/README.md)
 
+## Copy This
+
+New here:
+
+```bash
+autore start --demo --run
+```
+
+Using it on a real repo:
+
+```bash
+autore start
+```
+
+`autore start` auto-fixes the obvious setup gaps first.
+
+Want the tool to guide you:
+
+```bash
+autore quickstart
+```
+
 ## Flow
 
 ```mermaid
@@ -43,7 +65,7 @@ If the repo does not have `autoresearch.toml` yet, `autore start` will:
 
 1. auto-detect a preset
 2. create `autoresearch.toml`
-3. run `autore doctor`
+3. run `autore doctor --fix`
 4. run a bounded research loop
 
 During long runs, live execution logs are written under `.autoresearch/runs/iteration-XXXX/`.
@@ -150,6 +172,12 @@ If you want the least amount of thinking:
 
 ```bash
 autore quickstart
+```
+
+If you want the tool to repair the obvious setup gaps first:
+
+```bash
+autore doctor --fix
 ```
 
 ## Repository layout

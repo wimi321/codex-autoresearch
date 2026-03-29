@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from .config import ResearchConfig, detect_preset, template_for_preset
+from .gittools import ensure_gitignore_has
 from .runner import ResearchRunner, default_branch_name
 
 
@@ -96,7 +97,8 @@ def cmd_start(
             if result != 0:
                 return result
 
-    doctor_result = cmd_doctor(config_path)
+    print("[autore] checking repo setup and auto-fixing obvious gaps")
+    doctor_result = cmd_doctor(config_path, fix=True)
     if doctor_result != 0:
         return doctor_result
 
@@ -213,6 +215,9 @@ def cmd_doctor(config_path: str, fix: bool = False) -> int:
                 fixed.append(f"created {config_path}")
         else:
             issues.append("autoresearch.toml missing: run 'autore init'")
+    if fix:
+        ensure_gitignore_has(cwd, [".autoresearch/"])
+        fixed.append("ensured .autoresearch/ is ignored")
 
     if fixed:
         print("Autoresearch doctor applied fixes:")
@@ -232,6 +237,10 @@ def cmd_doctor(config_path: str, fix: bool = False) -> int:
     print(f"- metric: {config.metric} ({config.metric_direction_label()})")
     print(f"- verify: {config.verify}")
     print(f"- guard: {config.guard or 'none'}")
+    suggestion = suggest_repo_defaults(cwd, config=config)
+    print(f"- suggested preset: {suggestion['preset']}")
+    print(f"- suggested use case: {suggestion['use_case']}")
+    print(f"- next step: {suggestion['next_step']}")
     return 0
 
 
@@ -270,11 +279,16 @@ def cmd_quickstart(demo_dir: str) -> int:
             run_demo=run_now,
         )
 
+    suggestion = suggest_repo_defaults(Path.cwd())
+    print(f"Recommended preset: {suggestion['preset']}")
+    print(f"Suggested metric pattern: {suggestion['metric_hint']}")
+    print(f"Suggested guard: {suggestion['guard_hint']}")
+    print(f"Suggested next command: {suggestion['next_step']}")
     iterations = _ask_int("How many iterations for this repo?", default=5)
     resume = _ask_yes_no("Resume an existing autoresearch branch?", default=False)
     return cmd_start(
         config_path="autoresearch.toml",
-        preset="auto",
+        preset=suggestion["preset"],
         iterations=iterations,
         resume=resume,
         skip_branch=resume,
@@ -298,6 +312,52 @@ def _ask_int(prompt: str, *, default: int) -> int:
     if not answer:
         return default
     return int(answer)
+
+
+def suggest_repo_defaults(cwd: Path, config: ResearchConfig | None = None) -> dict[str, str]:
+    preset = detect_preset(cwd)
+    if preset == "generic" and config is not None:
+        preset = _infer_preset_from_config(config)
+    if preset == "python":
+        return {
+            "preset": "python",
+            "metric_hint": "pytest coverage or collected tests",
+            "guard_hint": "pytest",
+            "use_case": "test coverage, bug-fix loops, type-safe refactors",
+            "next_step": "autore run --iterations 5",
+        }
+    if preset == "node":
+        return {
+            "preset": "node",
+            "metric_hint": "bundle size, test count, or build output metric",
+            "guard_hint": "npm test",
+            "use_case": "bundle reduction, frontend perf, test expansion",
+            "next_step": "autore run --iterations 5",
+        }
+    return {
+        "preset": "generic",
+        "metric_hint": "any shell command that prints one number",
+        "guard_hint": "optional project smoke test",
+        "use_case": "custom repos with a mechanical verify command",
+        "next_step": "autore quickstart",
+    }
+
+
+def _infer_preset_from_config(config: ResearchConfig) -> str:
+    text = " ".join(
+        [
+            config.goal,
+            config.metric,
+            config.verify,
+            config.guard or "",
+            " ".join(config.scope),
+        ]
+    ).lower()
+    if any(token in text for token in ("pytest", "pyproject", "python", "mypy", "ruff")):
+        return "python"
+    if any(token in text for token in ("npm", "node", "pnpm", "yarn", "next build", "vitest", "jest")):
+        return "node"
+    return "generic"
 
 
 def _print_demo_summary(target: Path) -> None:
