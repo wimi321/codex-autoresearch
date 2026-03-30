@@ -1466,10 +1466,6 @@ def render_ui_html() -> str:
               <span id="simpleGoalLabel">What do you want to make happen?</span>
               <textarea id="simpleGoalInput" class="goal-box" placeholder="Example: Fix the homepage loading bug, make the copy simpler, and improve the signup flow."></textarea>
             </label>
-            <div class="starter-shell simple-secondary" aria-live="polite">
-              <div class="small" id="simpleStarterTitle">Try a starter goal</div>
-              <div class="starter-grid" id="simpleStarterList"></div>
-            </div>
             <div class="form-grid" style="margin-top:14px;">
               <label class="field"><span id="simpleIterationsLabel">Run how many rounds</span><input id="simpleIterationsInput" type="number" min="1" value="5"></label>
               <label class="field"><span id="simpleStopAtLabel">Or stop at this time</span><input id="simpleStopAtInput" type="datetime-local"></label>
@@ -1483,90 +1479,6 @@ def render_ui_html() -> str:
             <div class="small" id="simpleActionHint" aria-live="polite"></div>
             <div class="helper-note" id="simpleHelper">Write one clear goal, choose how long to run, then press start.</div>
             <div class="helper-note" id="simpleReadiness" aria-live="polite">Checking local setup...</div>
-            <div class="helper-note simple-secondary" aria-live="polite">
-              <div class="small" id="simplePreviewTitle">Run preview</div>
-              <div class="preview-lead" id="simplePreviewHeadline">Type a goal or tap a starter goal to preview the run.</div>
-              <div class="preview-grid">
-                <div class="preview-card">
-                  <div class="plan-label" id="simplePreviewGoalLabel">Goal</div>
-                  <div class="plan-value" id="simplePreviewGoal">-</div>
-                </div>
-                <div class="preview-card">
-                  <div class="plan-label" id="simplePreviewRunLabel">How it will run</div>
-                  <div class="plan-value" id="simplePreviewRun">-</div>
-                </div>
-                <div class="preview-card">
-                  <div class="plan-label" id="simplePreviewFinishLabel">What comes back</div>
-                  <div class="plan-value" id="simplePreviewFinish">-</div>
-                </div>
-              </div>
-            </div>
-            <div class="helper-note simple-secondary" aria-live="polite">
-              <div class="small" id="simpleChecksTitle">What the app checks for you</div>
-              <div class="plan-grid">
-                <div class="plan-card">
-                  <div class="plan-label" id="simpleChecksVerifyLabel">Progress check</div>
-                  <div class="plan-value" id="simpleChecksVerifyText">After each round, the app runs this command to measure whether the repo improved.</div>
-                  <code class="plan-code" id="simpleChecksVerifyCode">-</code>
-                </div>
-                <div class="plan-card">
-                  <div class="plan-label" id="simpleChecksGuardLabel">Safety check</div>
-                  <div class="plan-value" id="simpleChecksGuardText">Before a result counts, this extra command also has to pass.</div>
-                  <code class="plan-code" id="simpleChecksGuardCode">No extra safety check for this plan.</code>
-                </div>
-              </div>
-            </div>
-            <div class="helper-note simple-secondary" aria-live="polite">
-              <div class="small" id="simpleExplainTitle">Why this plan fits your repo</div>
-              <div class="step-list" id="simpleExplainList"></div>
-            </div>
-            <div class="helper-note simple-secondary">
-              <div class="small" id="simpleFlowTitle">What happens after you press start</div>
-              <div class="step-list" id="simpleFlowList">
-                <div class="step-item">
-                  <div class="step-num">1</div>
-                  <div class="small" id="simpleFlowStepWrite">Autoresearch writes a starter config with repo-specific defaults for you.</div>
-                </div>
-                <div class="step-item">
-                  <div class="step-num">2</div>
-                  <div class="small" id="simpleFlowStepWorkspace">It chooses the safest workspace for this run based on your current git state.</div>
-                </div>
-                <div class="step-item">
-                  <div class="step-num">3</div>
-                  <div class="small" id="simpleFlowStepFinish">It verifies each round and keeps the best result visible here.</div>
-                </div>
-              </div>
-            </div>
-            <div class="helper-note simple-secondary" aria-live="polite">
-              <div class="small" id="simplePlanTitle">Before you start</div>
-              <div class="small" id="simplePlanIntro">Simple mode auto-writes the config, picks the repo preset, and decides whether to run here or in a safe copy.</div>
-              <div class="plan-grid">
-                <div class="plan-card">
-                  <div class="plan-label" id="simplePlanPresetLabel">Detected preset</div>
-                  <div class="plan-value" id="simplePlanPreset">-</div>
-                </div>
-                <div class="plan-card">
-                  <div class="plan-label" id="simplePlanWorkspaceLabel">Run workspace</div>
-                  <div class="plan-value" id="simplePlanWorkspace">-</div>
-                </div>
-                <div class="plan-card">
-                  <div class="plan-label" id="simplePlanScopeLabel">Allowed edit scope</div>
-                  <div class="plan-code-list" id="simplePlanScope"></div>
-                </div>
-                <div class="plan-card">
-                  <div class="plan-label" id="simplePlanVerifyLabel">Progress check</div>
-                  <div class="plan-value" id="simplePlanVerify">-</div>
-                </div>
-                <div class="plan-card">
-                  <div class="plan-label" id="simplePlanGuardLabel">Safety check</div>
-                  <div class="plan-value" id="simplePlanGuard">-</div>
-                </div>
-                <div class="plan-card wide">
-                  <div class="plan-label" id="simplePlanFilesLabel">Files it will create or update</div>
-                  <div class="plan-code-list" id="simplePlanFiles"></div>
-                </div>
-              </div>
-            </div>
           </div>
           <div class="guide-card">
             <div class="small" id="progressIntro">Live progress</div>
@@ -1672,7 +1584,7 @@ def render_ui_html() -> str:
         modeBeginnerBtn: "Simple",
         modeAdvancedBtn: "Advanced",
         simpleTitle: "Say what you want. Then press Start.",
-        simpleIntro: "Keep it simple: one goal, one run setting, one tap.",
+        simpleIntro: "Write the result you want. Pick how long it should run. Press start.",
         simpleGoalLabel: "What do you want to make happen?",
         simpleStarterTitle: "Try a starter goal",
         simpleIterationsLabel: "Run how many rounds",
@@ -1680,7 +1592,7 @@ def render_ui_html() -> str:
         simpleStartBtn: "Start now",
         simpleStopBtn: "Stop",
         simpleApplyBtn: "Bring back best result",
-        simpleHelper: "You do not need to set up the project type first. The app handles that for you.",
+        simpleHelper: "The app will choose the safest workspace and keep the run measurable.",
         simpleReadinessChecking: "Checking local setup...",
         simpleReadyCurrent: "Ready to start. This run can work directly in the current repo.",
         simpleReadySafe: "Ready to start. Uncommitted changes were found, so the run will use a safe copy and you can bring back the best result later.",
@@ -1688,7 +1600,7 @@ def render_ui_html() -> str:
         simplePreviewGoalLabel: "Goal",
         simplePreviewRunLabel: "How it will run",
         simplePreviewFinishLabel: "What comes back",
-        simplePreviewEmpty: "Type a goal or tap a starter goal to preview the run.",
+        simplePreviewEmpty: "Write a goal and the app will prepare the run for you.",
         simplePreviewRunCurrent: "Runs directly in this repo.",
         simplePreviewRunSafe: "Runs in a safe copy first.",
         simplePreviewFinishCurrent: "The best verified result stays in this repo.",
@@ -1838,7 +1750,7 @@ def render_ui_html() -> str:
         modeBeginnerBtn: "简单模式",
         modeAdvancedBtn: "高级模式",
         simpleTitle: "写下目标，然后点开始",
-        simpleIntro: "尽量一句话说清楚目标，剩下的交给系统。",
+        simpleIntro: "写下你想要的结果，选运行多久，然后点开始。",
         simpleGoalLabel: "你想让它做什么？",
         simpleStarterTitle: "可以先点一个示例目标",
         simpleIterationsLabel: "跑多少轮",
@@ -1846,7 +1758,7 @@ def render_ui_html() -> str:
         simpleStartBtn: "立即开始",
         simpleStopBtn: "停止",
         simpleApplyBtn: "带回最佳结果",
-        simpleHelper: "这里不用先选项目类型，应用会自动判断并处理。",
+        simpleHelper: "应用会自动选择更安全的运行方式，并持续检查结果。",
         simpleReadinessChecking: "正在检查本地环境...",
         simpleReadyCurrent: "已经可以开始，这次会直接在当前仓库里运行。",
         simpleReadySafe: "已经可以开始，但检测到未提交改动，所以会先用安全副本运行，之后你可以把最佳结果带回来。",
@@ -1854,7 +1766,7 @@ def render_ui_html() -> str:
         simplePreviewGoalLabel: "目标",
         simplePreviewRunLabel: "会怎么运行",
         simplePreviewFinishLabel: "最后会得到什么",
-        simplePreviewEmpty: "先写一个目标，或者点一个示例目标，这里就会告诉你接下来会发生什么。",
+        simplePreviewEmpty: "先写一个目标，应用就会自动准备这次运行。",
         simplePreviewRunCurrent: "会直接在当前仓库里运行。",
         simplePreviewRunSafe: "会先在安全副本里运行。",
         simplePreviewFinishCurrent: "最佳且验证通过的结果会直接留在当前仓库。",
@@ -2350,105 +2262,47 @@ def render_ui_html() -> str:
       if (stopButton) stopButton.disabled = !hasRunningTask;
     }
 
-    function renderSimpleExplainers(state) {
-      const suggestion = state.suggestion || {};
-      const simplePlan = state.simplePlan || {};
-      const preset = simplePlan.preset || suggestion.preset || "generic";
-      const scope = Array.isArray(simplePlan.scope) ? simplePlan.scope.filter(Boolean) : [];
-      const scopeText = scope.length ? scope.join(", ") : "-";
-      const verify = String(simplePlan.verify || "-").trim() || "-";
-      const guard = String(simplePlan.guard || "").trim();
-      const host = document.getElementById("simpleExplainList");
-      if (!host) return;
-      const items = [
-        escapeHtml(simplePresetNarrative(preset)),
-        escapeHtml(simplePlan.usesSafeCopy ? copy[lang].simpleExplainWorkspaceSafe : copy[lang].simpleExplainWorkspaceCurrent),
-        `${escapeHtml(copy[lang].simpleExplainScopePrefix)} <code class="plan-code">${escapeHtml(scopeText)}</code>.`,
-        `${escapeHtml(copy[lang].simpleExplainVerifyPrefix)} <code class="plan-code">${escapeHtml(verify)}</code>.`,
-        guard
-          ? `${escapeHtml(copy[lang].simpleExplainGuardPrefix)} <code class="plan-code">${escapeHtml(guard)}</code>.`
-          : escapeHtml(copy[lang].simpleExplainGuardNone)
-      ];
-      host.innerHTML = items.map((item, index) => `
-        <div class="step-item">
-          <div class="step-num">${index + 1}</div>
-          <div class="small">${item}</div>
-        </div>
-      `).join("");
-    }
-
-    function renderSimpleChecks(state) {
-      const simplePlan = state.simplePlan || {};
-      const verify = String(simplePlan.verify || "-").trim() || "-";
-      const guard = String(simplePlan.guard || "").trim();
-      const verifyText = document.getElementById("simpleChecksVerifyText");
-      const verifyCode = document.getElementById("simpleChecksVerifyCode");
-      const guardText = document.getElementById("simpleChecksGuardText");
-      const guardCode = document.getElementById("simpleChecksGuardCode");
-      if (verifyText) verifyText.textContent = copy[lang].simpleChecksVerifyText;
-      if (verifyCode) verifyCode.textContent = verify;
-      if (guardText) guardText.textContent = guard ? copy[lang].simpleChecksGuardText : copy[lang].simpleChecksGuardNone;
-      if (guardCode) guardCode.textContent = guard || copy[lang].simpleChecksGuardNone;
-    }
-
     function renderSimplePreview(state) {
-      const config = state.config || {};
-      const suggestion = state.suggestion || {};
       const simplePlan = state.simplePlan || {};
-      const goalInput = document.getElementById("simpleGoalInput");
       const iterationsInput = document.getElementById("simpleIterationsInput");
       const stopAtInput = document.getElementById("simpleStopAtInput");
-      const previewHeadline = document.getElementById("simplePreviewHeadline");
-      const previewGoal = document.getElementById("simplePreviewGoal");
-      const previewRun = document.getElementById("simplePreviewRun");
-      const previewFinish = document.getElementById("simplePreviewFinish");
+      const helper = document.getElementById("simpleHelper");
       const goal = resolvedSimpleGoal(state);
       const iterations = Math.max(1, Number(iterationsInput.value || "5") || 5);
       const stopAt = String(stopAtInput.value || "").trim();
-      const preset = simplePlan.preset || suggestion.preset || "generic";
       const schedule = stopAt
         ? `${copy[lang].simplePreviewUntilPrefix}: ${stopAt}`
         : `${copy[lang].simplePreviewRoundsPrefix}: ${iterations}`;
       const workspace = simplePlan.usesSafeCopy
         ? copy[lang].simplePreviewRunSafe
         : copy[lang].simplePreviewRunCurrent;
-      const guard = simplePlan.guard || copy[lang].simplePreviewGuardNone;
       const finish = simplePlan.usesSafeCopy
         ? copy[lang].simplePreviewFinishSafe
         : copy[lang].simplePreviewFinishCurrent;
-      if (!goal) {
-        previewHeadline.textContent = copy[lang].simplePreviewEmpty;
-        previewGoal.textContent = copy[lang].simplePreviewEmpty;
-      } else {
-        previewHeadline.textContent = `${schedule}. ${workspace} ${finish}`;
-        previewGoal.textContent = goal;
-      }
-      previewRun.textContent = [
-        schedule,
-        `${copy[lang].healthPresetPrefix}: ${preset}`,
-        workspace,
-        `${copy[lang].simplePreviewVerifyPrefix}: ${simplePlan.verify || "-"}`,
-        `${copy[lang].simplePreviewGuardPrefix}: ${guard}`
-      ].join(" • ");
-      previewFinish.textContent = finish;
+      if (!helper) return;
+      helper.textContent = goal
+        ? `${schedule}. ${workspace} ${finish}`
+        : copy[lang].simplePreviewEmpty;
     }
 
     function renderSimpleStarters(preset) {
       const host = document.getElementById("simpleStarterList");
       const languageGoals = starterGoals[lang] || starterGoals.en;
       const items = languageGoals[preset] || languageGoals.generic || [];
-      host.innerHTML = items.map((item, index) => `
+      if (host) {
+        host.innerHTML = items.map((item, index) => `
         <button class="starter-btn" type="button" data-starter-index="${index}">
           <strong>${escapeHtml(item.label)}</strong>
           <span>${escapeHtml(item.goal)}</span>
         </button>
       `).join("");
-      document.querySelectorAll("[data-starter-index]").forEach(node => {
-        node.onclick = () => {
-          const item = items[Number(node.dataset.starterIndex)];
-          if (item) fillSimpleGoal(item.goal);
-        };
-      });
+        document.querySelectorAll("[data-starter-index]").forEach(node => {
+          node.onclick = () => {
+            const item = items[Number(node.dataset.starterIndex)];
+            if (item) fillSimpleGoal(item.goal);
+          };
+        });
+      }
       const input = document.getElementById("simpleGoalInput");
       if (!input.value.trim() && items[0]) {
         input.placeholder = items[0].goal;
@@ -2532,26 +2386,6 @@ def render_ui_html() -> str:
       document.getElementById("useCaseText").textContent = state.suggestion.use_case;
       document.getElementById("metricHint").textContent = state.suggestion.metric_hint;
       document.getElementById("guardHint").textContent = state.suggestion.guard_hint;
-      document.getElementById("simpleFlowTitle").textContent = copy[lang].simpleFlowTitle;
-      document.getElementById("simpleFlowStepWrite").textContent = copy[lang].simpleFlowWrite;
-      document.getElementById("simpleFlowStepWorkspace").textContent = simplePlan.usesSafeCopy
-        ? copy[lang].simpleFlowWorkspaceSafe
-        : copy[lang].simpleFlowWorkspaceCurrent;
-      document.getElementById("simpleFlowStepFinish").textContent = simplePlan.usesSafeCopy
-        ? copy[lang].simpleFlowFinishSafe
-        : copy[lang].simpleFlowFinishCurrent;
-      document.getElementById("simplePlanPreset").textContent = simplePlan.preset || "-";
-      document.getElementById("simplePlanVerify").textContent = simplePlan.verify || "-";
-      document.getElementById("simplePlanGuard").textContent = simplePlan.guard || copy[lang].simpleGuardNone;
-      document.getElementById("simplePlanWorkspace").innerHTML = simplePlan.usesSafeCopy
-        ? `<strong>${copy[lang].simpleWorkspaceSafe}</strong><div class="small">${copy[lang].simpleWorkspaceSafeDetail}</div>`
-        : `<strong>${copy[lang].simpleWorkspaceCurrent}</strong><div class="small">${copy[lang].simpleWorkspaceCurrentDetail}</div>`;
-      document.getElementById("simplePlanScope").innerHTML = (simplePlan.scope || []).length
-        ? (simplePlan.scope || []).map(path => `<code class="plan-code">${escapeHtml(path)}</code>`).join("")
-        : `<code class="plan-code">-</code>`;
-      document.getElementById("simplePlanFiles").innerHTML = (simplePlan.files || []).map(path => `<code class="plan-code">${escapeHtml(path)}</code>`).join("");
-      renderSimpleChecks(state);
-      renderSimpleExplainers(state);
       renderSimpleStartState(state);
       renderSimpleStarters(simplePlan.preset || state.suggestion.preset || "generic");
       const config = state.config;

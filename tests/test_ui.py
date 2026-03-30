@@ -105,25 +105,24 @@ def test_render_and_save_config(tmp_path: Path) -> None:
     assert 'goal = "Hello"' in path.read_text()
 
 
-def test_render_ui_html_includes_simple_mode_starters() -> None:
+def test_render_ui_html_keeps_simple_mode_focused_on_primary_actions() -> None:
     html = render_ui_html()
 
-    assert 'id="simpleStarterTitle"' in html
     assert 'id="simpleReadiness"' in html
-    assert 'id="simpleStarterList"' in html
-    assert "const starterGoals = {" in html
-    assert "function renderSimpleStarters(preset)" in html
+    assert 'id="simpleGoalInput"' in html
+    assert 'id="simpleIterationsInput"' in html
+    assert 'id="simpleStopAtInput"' in html
+    assert 'id="simpleStartBtn"' in html
+    assert 'id="simpleStopBtn"' in html
+    assert 'id="simpleStarterList"' not in html
 
 
-def test_render_ui_html_includes_simple_mode_next_steps_guidance() -> None:
+def test_render_ui_html_still_updates_simple_readiness_and_progress() -> None:
     html = render_ui_html()
 
-    assert 'id="simpleFlowTitle"' in html
-    assert 'id="simpleFlowStepWorkspace"' in html
-    assert 'id="simpleFlowStepFinish"' in html
-    assert "simpleFlowWorkspaceSafe" in html
-    assert "simpleFlowFinishCurrent" in html
-    assert 'document.getElementById("simpleFlowStepWorkspace").textContent = simplePlan.usesSafeCopy' in html
+    assert 'id="simpleProgressSummary"' in html
+    assert 'id="simpleCurrentTask"' in html
+    assert "function renderSimpleStartState(state)" in html
 
 
 def test_render_ui_html_localizes_runtime_panels_and_re_renders_on_language_switch() -> None:
@@ -159,44 +158,23 @@ def test_render_ui_html_exposes_safe_copy_bring_back_hint() -> None:
     assert "actionHint.textContent = copy[lang].simpleApplyReady;" in html
 
 
-def test_render_ui_html_includes_live_simple_run_preview() -> None:
+def test_render_ui_html_uses_helper_line_for_simple_run_summary() -> None:
     html = render_ui_html()
 
-    assert 'id="simplePreviewTitle"' in html
-    assert 'id="simplePreviewHeadline"' in html
-    assert 'id="simplePreviewRun"' in html
+    assert 'id="simpleHelper"' in html
     assert "function renderSimplePreview(state)" in html
     assert 'document.getElementById("simpleGoalInput").addEventListener("input", () => renderSimplePreview(window._state || {}));' in html
-    assert 'previewRun.textContent = [' in html
+    assert 'helper.textContent = goal' in html
 
 
-def test_render_ui_html_includes_plain_language_simple_checks_explainer() -> None:
+def test_render_ui_html_removes_secondary_simple_explainer_panels() -> None:
     html = render_ui_html()
 
-    assert 'id="simpleChecksTitle"' in html
-    assert 'id="simpleChecksVerifyCode"' in html
-    assert 'id="simpleChecksGuardCode"' in html
-    assert "function renderSimpleChecks(state)" in html
-    assert "renderSimpleChecks(state);" in html
-
-
-def test_render_ui_html_includes_plain_language_simple_plan_explainer() -> None:
-    html = render_ui_html()
-
-    assert 'id="simpleExplainTitle"' in html
-    assert 'id="simpleExplainList"' in html
-    assert "function simplePresetNarrative(preset)" in html
-    assert "function renderSimpleExplainers(state)" in html
-    assert "renderSimpleExplainers(state);" in html
-
-
-def test_render_ui_html_surfaces_simple_mode_scope_guardrails() -> None:
-    html = render_ui_html()
-
-    assert 'id="simplePlanScopeLabel"' in html
-    assert 'id="simplePlanScope"' in html
-    assert "simpleExplainScopePrefix" in html
-    assert 'document.getElementById("simplePlanScope").innerHTML = (simplePlan.scope || []).length' in html
+    assert 'id="simplePreviewTitle"' not in html
+    assert 'id="simpleChecksTitle"' not in html
+    assert 'id="simpleExplainTitle"' not in html
+    assert 'id="simpleFlowTitle"' not in html
+    assert 'id="simplePlanScope"' not in html
 
 
 def test_render_ui_html_uses_resolved_simple_goal_for_preview_and_start() -> None:
