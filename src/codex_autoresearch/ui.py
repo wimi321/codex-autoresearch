@@ -218,11 +218,22 @@ def default_simple_goal_for_preset(preset: str) -> str:
     }.get(preset, "Find the highest-impact issue inside the allowed scope, fix it cleanly, and verify the project still works.")
 
 
+def default_simple_scope_for_preset(preset: str) -> str:
+    return {
+        "python": "src/**, tests/**, docs/**, README.md, CHANGELOG.md",
+        "node": "src/**, app/**, tests/**, docs/**, README.md, CHANGELOG.md",
+        "generic": "src/**, app/**, docs/**, README.md, CHANGELOG.md",
+    }.get(preset, "src/**, app/**, docs/**, README.md, CHANGELOG.md")
+
+
 def simple_goal_payload(cwd: Path, goal: str, iterations: int) -> dict[str, Any]:
     preset = suggest_repo_defaults(cwd)["preset"]
     values = preset_payload(preset)
     values["goal"] = goal.strip() or default_simple_goal_for_preset(preset)
     values["iterations"] = iterations
+    values["scope"] = default_simple_scope_for_preset(preset)
+    # Simple mode favors responsiveness over maximum reasoning depth.
+    values["codexCommand"] = 'codex exec -c model_reasoning_effort="medium"'
     if preset == "python":
         values["metric"] = "passed tests"
         values["direction"] = "higher"
@@ -383,6 +394,72 @@ def export_sandbox_patch(original_cwd: Path, sandbox_cwd: Path, task_id: str) ->
     patch_path = inbox / f"{task_id}-{safe_branch}.patch"
     patch_path.write_text(diff)
     return str(patch_path)
+
+
+def _git_text(cwd: Path, revspec: str, path: str) -> str | None:
+    result = git(["show", f"{revspec}:{path}"], cwd, check=False)
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def bring_back_sandbox_changes(original_cwd: Path, sandbox_cwd: Path) -> tuple[bool, str]:
+    status_output = git(["diff", "--name-status", "main...HEAD"], sandbox_cwd, check=False).stdout
+    lines = [line for line in status_output.splitlines() if line.strip()]
+    if not lines:
+        return False, "no changes to bring back"
+
+    conflicts: list[str] = []
+    planned: list[tuple[str, str]] = []
+    for line in lines:
+        parts = line.split("\t", 1)
+        if len(parts) != 2:
+            continue
+        change, rel_path = parts
+        rel_path = rel_path.strip()
+        baseline = _git_text(sandbox_cwd, "main", rel_path)
+        result_text = _git_text(sandbox_cwd, "HEAD", rel_path)
+        target = original_cwd / rel_path
+        current = target.read_text() if target.exists() else None
+
+        if change.startswith("A"):
+            if current is not None:
+                conflicts.append(rel_path)
+                continue
+            planned.append((change, rel_path))
+            continue
+
+        if change.startswith("D"):
+            if current != baseline:
+                conflicts.append(rel_path)
+                continue
+            planned.append((change, rel_path))
+            continue
+
+        if current != baseline:
+            conflicts.append(rel_path)
+            continue
+        if result_text is None:
+            conflicts.append(rel_path)
+            continue
+        planned.append((change, rel_path))
+
+    if conflicts:
+        preview = "\n".join(conflicts[:10])
+        return False, f"bring-back found conflicting files:\n{preview}"
+
+    for change, rel_path in planned:
+        target = original_cwd / rel_path
+        if change.startswith("D"):
+            target.unlink(missing_ok=True)
+            continue
+        result_text = _git_text(sandbox_cwd, "HEAD", rel_path)
+        if result_text is None:
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(result_text)
+
+    return True, f"applied {len(planned)} file changes"
 
 
 def normalize_stop_at(value: str | None) -> str | None:
@@ -688,10 +765,10 @@ def build_handler(repo_root: Path, config_path: str, task_store: TaskStore) -> t
                     self._send_json({"error": "no saved result to bring back for this task"}, status=HTTPStatus.BAD_REQUEST)
                     return
                 patch_path = str(task["patch_path"])
+                sandbox_cwd = Path(str(task["cwd"]))
                 original_cwd = Path(str(task["original_cwd"]))
-                result = git(["apply", "--3way", "--whitespace=nowarn", patch_path], original_cwd, check=False)
-                if result.returncode != 0:
-                    message = result.stderr.strip() or result.stdout.strip() or "could not apply patch"
+                applied, message = bring_back_sandbox_changes(original_cwd, sandbox_cwd)
+                if not applied:
                     task_store.mark_import_status(task_id, "failed", f"[autore] bring-back failed:\n{message}")
                     self._send_json({"applied": False, "error": message, "patchPath": patch_path}, status=HTTPStatus.CONFLICT)
                     return

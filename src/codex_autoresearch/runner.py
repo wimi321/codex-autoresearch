@@ -137,7 +137,7 @@ class ResearchRunner:
             raise RuntimeError("codex_command cannot be empty")
         if base[0] == "codex":
             if len(base) > 1 and base[1] == "exec":
-                return ["codex", "-a", "never", "exec", "-s", "workspace-write", str(self.prompt_path)]
+                return ["codex", "-a", "never", "exec", *base[2:], "-s", "workspace-write", str(self.prompt_path)]
             return ["codex", "-a", "never", *base[1:], "exec", "-s", "workspace-write", str(self.prompt_path)]
         return [*base, str(self.prompt_path)]
 

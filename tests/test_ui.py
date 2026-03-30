@@ -2,7 +2,7 @@ import io
 import json
 from pathlib import Path
 
-from codex_autoresearch.ui import build_action_command, build_handler, collect_dashboard_state, export_sandbox_patch, load_results_history, load_results_preview, load_run_timeline, normalize_stop_at, preset_payload, read_log_excerpt, render_config_toml, render_ui_html, save_config, simple_goal_payload, simple_mode_preview, simple_run_workspace, validate_simple_goal
+from codex_autoresearch.ui import bring_back_sandbox_changes, build_action_command, build_handler, collect_dashboard_state, export_sandbox_patch, load_results_history, load_results_preview, load_run_timeline, normalize_stop_at, preset_payload, read_log_excerpt, render_config_toml, render_ui_html, save_config, simple_goal_payload, simple_mode_preview, simple_run_workspace, validate_simple_goal
 
 
 def test_build_action_command_for_start_and_nightly() -> None:
@@ -260,6 +260,8 @@ def test_simple_goal_payload_uses_detected_preset_and_goal(tmp_path: Path, monke
     assert payload["metric"] == "passed tests"
     assert "python -m pytest -q" in payload["verify"]
     assert payload["guard"] == "python -m pytest -q"
+    assert payload["scope"] == "src/**, tests/**, docs/**, README.md, CHANGELOG.md"
+    assert payload["codexCommand"] == 'codex exec -c model_reasoning_effort="medium"'
 
 
 def test_simple_goal_payload_falls_back_to_beginner_friendly_default(tmp_path: Path, monkeypatch) -> None:
@@ -303,7 +305,7 @@ def test_simple_mode_preview_includes_allowed_edit_scope(tmp_path: Path, monkeyp
 
     preview = simple_mode_preview(tmp_path, "autoresearch.toml")
 
-    assert preview["scope"] == ["src/**", "tests/**"]
+    assert preview["scope"] == ["src/**", "tests/**", "docs/**", "README.md", "CHANGELOG.md"]
 
 
 def test_collect_dashboard_state_reports_simple_start_blocker_when_codex_missing(tmp_path: Path, monkeypatch) -> None:
@@ -602,3 +604,63 @@ def test_export_sandbox_patch_writes_patch_into_original_repo(tmp_path: Path) ->
     assert patch_path.endswith(".patch")
     assert (original / ".autoresearch" / "inbox").exists()
     assert "changed" in Path(patch_path).read_text()
+
+
+def test_bring_back_sandbox_changes_applies_modified_and_added_files(tmp_path: Path) -> None:
+    import subprocess
+
+    original = tmp_path / "original"
+    sandbox = tmp_path / "sandbox"
+    original.mkdir()
+    sandbox.mkdir()
+    (original / "src").mkdir()
+    (sandbox / "src").mkdir()
+    (original / "src" / "app.py").write_text("old\n")
+    (sandbox / "src" / "app.py").write_text("old\n")
+
+    subprocess.run(["git", "init", "-b", "main"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "autore"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "autore@example.com"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "base"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "checkout", "-b", "autoresearch/test"], cwd=sandbox, check=True, text=True, capture_output=True)
+    (sandbox / "src" / "app.py").write_text("new\n")
+    (sandbox / "src" / "new.py").write_text("hello\n")
+    subprocess.run(["git", "add", "-A"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "change"], cwd=sandbox, check=True, text=True, capture_output=True)
+
+    applied, message = bring_back_sandbox_changes(original, sandbox)
+
+    assert applied is True
+    assert "applied 2 file changes" == message
+    assert (original / "src" / "app.py").read_text() == "new\n"
+    assert (original / "src" / "new.py").read_text() == "hello\n"
+
+
+def test_bring_back_sandbox_changes_reports_conflicts(tmp_path: Path) -> None:
+    import subprocess
+
+    original = tmp_path / "original"
+    sandbox = tmp_path / "sandbox"
+    original.mkdir()
+    sandbox.mkdir()
+    (original / "src").mkdir()
+    (sandbox / "src").mkdir()
+    (original / "src" / "app.py").write_text("local change\n")
+    (sandbox / "src" / "app.py").write_text("old\n")
+
+    subprocess.run(["git", "init", "-b", "main"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "autore"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "autore@example.com"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "add", "-A"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "base"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "checkout", "-b", "autoresearch/test"], cwd=sandbox, check=True, text=True, capture_output=True)
+    (sandbox / "src" / "app.py").write_text("new\n")
+    subprocess.run(["git", "add", "-A"], cwd=sandbox, check=True, text=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "change"], cwd=sandbox, check=True, text=True, capture_output=True)
+
+    applied, message = bring_back_sandbox_changes(original, sandbox)
+
+    assert applied is False
+    assert "src/app.py" in message
+    assert (original / "src" / "app.py").read_text() == "local change\n"

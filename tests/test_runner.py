@@ -43,6 +43,22 @@ def test_build_codex_command_for_plain_codex_form(tmp_path: Path) -> None:
     ]
 
 
+def test_build_codex_command_preserves_exec_overrides(tmp_path: Path) -> None:
+    runner = ResearchRunner(tmp_path, make_config('codex exec -c model_reasoning_effort="medium"'))
+    runner.prompt_path.parent.mkdir(parents=True, exist_ok=True)
+    assert runner._build_codex_command() == [
+        "codex",
+        "-a",
+        "never",
+        "exec",
+        "-c",
+        "model_reasoning_effort=medium",
+        "-s",
+        "workspace-write",
+        str(runner.prompt_path),
+    ]
+
+
 def test_resume_state_uses_latest_keep_metric(tmp_path: Path) -> None:
     runner = ResearchRunner(tmp_path, make_config("codex exec"))
     runner.log_path.parent.mkdir(parents=True, exist_ok=True)
