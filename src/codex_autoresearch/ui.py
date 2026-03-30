@@ -1431,10 +1431,10 @@ def render_ui_html() -> str:
   <a href="#main" class="skip-link">Skip to main content</a>
   <main class="shell" id="main">
     <section class="hero">
-      <div class="eyebrow" id="eyebrow">Codex Autoresearch UI</div>
       <div class="hero-grid">
         <div>
           <div class="top-controls">
+            <div class="eyebrow advanced-only" id="eyebrow">Codex Autoresearch UI</div>
             <div class="lang-toggle" aria-label="Language switch">
               <button class="active" data-lang="en">EN</button>
               <button data-lang="zh">中文</button>
@@ -1446,7 +1446,7 @@ def render_ui_html() -> str:
           </div>
           <h1 id="title">Run your repo like a measured Codex lab.</h1>
           <p class="summary" id="summary">A local control room for setup, nightly workflows, and bounded Codex runs. No YAML hunting. No command memorizing.</p>
-          <div class="chips" id="heroChips"></div>
+          <div class="chips advanced-only" id="heroChips"></div>
         </div>
         <div class="stats advanced-only">
           <div class="stat"><label id="repoLabel">Repository</label><strong id="repoName">-</strong></div>
@@ -1575,8 +1575,8 @@ def render_ui_html() -> str:
     const copy = {
       en: {
         eyebrow: "Codex Autoresearch UI",
-        title: "One goal. One tap. Clear progress.",
-        summary: "Type what you want changed, choose how long to run, and watch the result live.",
+        title: "Tell it what you want. Watch it work.",
+        summary: "Write the outcome you want, choose how long to run, and follow the progress live.",
         repoLabel: "Repository",
         presetLabel: "Preset",
         configLabel: "Config",
@@ -1741,8 +1741,8 @@ def render_ui_html() -> str:
       },
       zh: {
         eyebrow: "Codex Autoresearch 控制台",
-        title: "一个目标，一键开始，进度清楚可见。",
-        summary: "写下你想完成什么，选运行多久，然后直接看实时进度。",
+        title: "写下目标，看它开始执行。",
+        summary: "只要写下想要的结果，选运行多久，然后直接看实时进度。",
         repoLabel: "仓库",
         presetLabel: "预设",
         configLabel: "配置",

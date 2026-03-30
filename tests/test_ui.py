@@ -139,6 +139,14 @@ def test_render_ui_html_localizes_runtime_panels_and_re_renders_on_language_swit
     assert "taskIterations(task)" in html
 
 
+def test_render_ui_html_hides_hero_diagnostics_in_simple_mode() -> None:
+    html = render_ui_html()
+
+    assert 'class="eyebrow advanced-only"' in html
+    assert 'class="chips advanced-only" id="heroChips"' in html
+    assert 'class="stats advanced-only"' in html
+
+
 def test_render_ui_html_escapes_dynamic_html_content() -> None:
     html = render_ui_html()
 
